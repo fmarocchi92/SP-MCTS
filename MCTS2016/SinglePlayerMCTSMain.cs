@@ -18,8 +18,9 @@ namespace MCTS2016
         /// - game
         /// - constC
         /// - constD
-        /// - time per search
+        /// - time per search in minutes
         /// - iterations per search
+        /// - number of randomized restarts
         /// - seed
         /// - log path
         /// - level path
@@ -28,7 +29,7 @@ namespace MCTS2016
         /// </param>
         public static void Main(string[] args)
         {
-            if (args.Length < 8)
+            if (args.Length < 9)
             {
                 PrintInputError("Missing arguments");
                 return;
@@ -58,22 +59,28 @@ namespace MCTS2016
                 PrintInputError("iterations requires an integer value");
                 return;
             }
+            int restarts;
+            if (!int.TryParse(args[5], out restarts))
+            {
+                PrintInputError("number of restarts requires an integer value");
+                return;
+            }
             uint seed;
-            if (!uint.TryParse(args[5], out seed))
+            if (!uint.TryParse(args[6], out seed))
             {
                 PrintInputError("seed requires an unsigned integer value");
                 return;
             }
             RNG.Seed(seed);
-            string logPath = args[6];
+            string logPath = args[7];
             textWriter = File.AppendText(logPath);
-            string levelPath = args[7];
-            Log("BEGIN TASK: " + game+" - const_C: "+const_C + " - const_D: " + const_D+" - minutes per move: "+searchTime+" - iterations per move: "+iterations);
+            string levelPath = args[8];
+            Log("BEGIN TASK: " + game+" - const_C: "+const_C + " - const_D: " + const_D+" - minutes per move: "+searchTime+" - iterations per move: "+iterations + " - restarts: " + restarts);
             if (game.Equals("sokoban")){
                 
             }else if (game.Equals("samegame"))
             {
-                SamegameTest(const_C, const_D, searchTime, iterations, levelPath);
+                SamegameTest(const_C, const_D, searchTime, iterations, restarts, levelPath);
             }
             else
             {
@@ -92,36 +99,42 @@ namespace MCTS2016
             return;
         }
 
-        private static void SokobanTest(double const_C, double const_D, double searchTime, int iterations, string levelPath)
+        private static void SokobanTest(double const_C, double const_D, double searchTime, int iterations, int restarts, string levelPath)
         {
             
         }
 
-        private static void SamegameTest(double const_C, double const_D, double searchTime, int iterations, string levelPath)
+        private static void SamegameTest(double const_C, double const_D, double searchTime, int iterations, int restarts, string levelPath)
         {
             string[] levels = ReadSamegameLevels(levelPath);
             int totalScore = 0;
             for (int i = 0; i < levels.Length; i++)
             {
                 ISimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(levels[i]);
-                SamegameGameState s = new SamegameGameState(levels[i], simulationStrategy);
+                
                 //Log(s.PrettyPrint());
-
-                IGameMove move;
-                ISimulationStrategy player = new SamegameMCTSStrategy(iterations, searchTime, null, const_C, const_D);
-                //double startTime = DateTime.Now.TimeOfDay.TotalSeconds;//used to keep track of the time needed to solve each level
-                while (!s.isTerminal())
+                int maxScore = int.MinValue;
+                for (int restartN = 0; restartN < restarts; restartN++)
                 {
+                    SamegameGameState s = new SamegameGameState(levels[i], simulationStrategy);
+                    IGameMove move;
+                    ISimulationStrategy player = new SamegameMCTSStrategy(iterations, searchTime, null, const_C, const_D);
+                    //double startTime = DateTime.Now.TimeOfDay.TotalSeconds;//used to keep track of the time needed to solve each level
+                    while (!s.isTerminal())
+                    {
 
-                    move = player.selectMove(s);
-                    //Log(move);
-                    s.DoMove(move);
-                    //Log(s.GetScore(1));
-                    //Log(s.PrettyPrint());
+                        move = player.selectMove(s);
+                        //Log(move);
+                        s.DoMove(move);
+                        //Log(s.GetScore(1));
+                        //Log(s.PrettyPrint());
+                    }
+                    maxScore = Math.Max(maxScore, s.GetScore(0));
                 }
-                Log("Final configuration level " + (i+1) + ": \n" + s.PrettyPrint());
-                Log("Score level " + (i+1) + ": " + s.GetScore(0));
-                totalScore += s.GetScore(0);
+                //Log("Final configuration level " + (i + 1) + ": \n" + s.PrettyPrint()); //this describes the last run, not the best one
+                Log("Score level " + (i + 1) + ": " + maxScore);
+                
+                totalScore += maxScore;
                 //double elapsedTime = DateTime.Now.TimeOfDay.TotalSeconds - startTime;
                 //Log("Time elapsed level " + (i+1) + ": " + Math.Truncate(elapsedTime / 60) + " minutes and " + Math.Truncate(elapsedTime % 60) + " seconds\n");
             }
