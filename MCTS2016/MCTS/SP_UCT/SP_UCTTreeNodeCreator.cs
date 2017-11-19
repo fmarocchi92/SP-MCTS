@@ -13,7 +13,7 @@ namespace MCTS2016.MCTS.SP_UCT
         private double const_C;
         private double const_D;
 
-        public SP_UCTTreeNodeCreator(double constant = 4.31, double const_D = 96.67)
+        public SP_UCTTreeNodeCreator(double constant, double const_D)
         {
             this.const_C = constant;
             this.const_D = const_D;

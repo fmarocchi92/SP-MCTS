@@ -19,11 +19,11 @@ namespace MCTS2016.Puzzles.SameGame
 
         public int iterations { get; set; }
 
-        public SamegameMCTSStrategy(int iterations = 1000, double maxTimeInMinutes = 5, SP_MCTSAlgorithm mcts = null)
+        public SamegameMCTSStrategy(int iterations = 1000, double maxTimeInMinutes = 5, SP_MCTSAlgorithm mcts = null, double const_C = 4.31, double const_D = 96.67)
         {
             if (mcts == null)
             {
-                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator());
+                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D));
             }
             this.mcts = mcts;
             this.iterations = iterations;

@@ -320,7 +320,10 @@ namespace MCTS2016.Puzzles.SameGame
                 {
                     s += value.ToString();
                 }
-                s += "\n";
+                if (board.Last<List<int>>() != column)
+                {
+                    s += "\n";
+                }
             }
             return s;
         }

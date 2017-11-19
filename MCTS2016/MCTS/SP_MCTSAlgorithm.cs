@@ -15,7 +15,7 @@ namespace MCTS2016.MCTS
         private bool search = true;
 
         private List<IGameMove> bestRollout;
-        private double topScore;
+        private double topScore = double.MinValue;
         private bool updateTopScore;
 
         public SP_MCTSAlgorithm(ITreeNodeCreator treeCreator)

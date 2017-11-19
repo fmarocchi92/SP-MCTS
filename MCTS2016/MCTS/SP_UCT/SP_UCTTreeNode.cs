@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Common.Abstract;
 using MCTS.Standard.Utils;
+using Common;
 
 namespace MCTS2016.MCTS.SP_UCT
 {
@@ -85,7 +86,7 @@ namespace MCTS2016.MCTS.SP_UCT
 
         public IGameMove SelectUntriedMove()
         {
-            return untriedMoves[random.Next(untriedMoves.Count)];
+            return untriedMoves[RNG.Next(untriedMoves.Count)];
         }
 
         /// <summary>

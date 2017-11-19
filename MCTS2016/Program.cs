@@ -47,21 +47,21 @@ class MainClass
 		new TicTacToeMCTSStrategy(1000),
 	};
 
-	public static void Main (string[] args)
-	{
-        //RedirectOutputToFile ("output.txt");
+	//public static void Main (string[] args)
+	//{
+ //       //RedirectOutputToFile ("output.txt");
 
-        //TicTacToeMCTSEval(new Tuple<string, int>("MCTS", 100), 10, 0);
+ //       //TicTacToeMCTSEval(new Tuple<string, int>("MCTS", 100), 10, 0);
 
-        //		if (outputToFile)
-        //			CloseOutputToFile ();
-        //		else 
-        //Console.ReadLine();
+ //       //		if (outputToFile)
+ //       //			CloseOutputToFile ();
+ //       //		else 
+ //       //Console.ReadLine();
 
-        //SokobanTest();
-        SamegameTest();
+ //       //SokobanTest();
+ //       SamegameTest();
 
-    }
+ //   }
 		
     private static void SokobanTest()
     {

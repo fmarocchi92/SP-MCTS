@@ -84,6 +84,7 @@
     <Compile Include="Puzzles\Sokoban\SokobanGameMove.cs" />
     <Compile Include="Puzzles\Sokoban\SokobanGameState.cs" />
     <Compile Include="Puzzles\Sokoban\SokobanRandomStrategy.cs" />
+    <Compile Include="SinglePlayerMCTSMain.cs" />
     <Compile Include="TrueSkill\TwoPlayerTrueSkillCalculator.cs" />
     <Compile Include="TrueSkill\Numerics\GaussianDistribution.cs" />
     <Compile Include="TrueSkill\Numerics\Matrix.cs" />
