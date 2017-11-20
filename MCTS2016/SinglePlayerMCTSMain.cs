@@ -114,26 +114,33 @@ namespace MCTS2016
                 
                 //Log(s.PrettyPrint());
                 int maxScore = int.MinValue;
+                string[] allMoves = new string[levels.Length];
                 for (int restartN = 0; restartN < restarts; restartN++)
                 {
                     SamegameGameState s = new SamegameGameState(levels[i], simulationStrategy);
                     IGameMove move;
                     ISimulationStrategy player = new SamegameMCTSStrategy(iterations, searchTime, null, const_C, const_D);
                     //double startTime = DateTime.Now.TimeOfDay.TotalSeconds;//used to keep track of the time needed to solve each level
+                    string moveString = string.Empty;
                     while (!s.isTerminal())
                     {
 
                         move = player.selectMove(s);
                         //Log(move);
+                        moveString += move+" ";
                         s.DoMove(move);
                         //Log(s.GetScore(1));
                         //Log(s.PrettyPrint());
                     }
-                    maxScore = Math.Max(maxScore, s.GetScore(0));
+                    if(s.GetScore(0) > maxScore)
+                    {
+                        maxScore = s.GetScore(0);
+                        allMoves[i] = moveString;
+                    }
                 }
                 //Log("Final configuration level " + (i + 1) + ": \n" + s.PrettyPrint()); //this describes the last run, not the best one
                 Log("Score level " + (i + 1) + ": " + maxScore);
-                
+                Log("Moves level " + (i + 1) + ": " + allMoves[i]);
                 totalScore += maxScore;
                 //double elapsedTime = DateTime.Now.TimeOfDay.TotalSeconds - startTime;
                 //Log("Time elapsed level " + (i+1) + ": " + Math.Truncate(elapsedTime / 60) + " minutes and " + Math.Truncate(elapsedTime % 60) + " seconds\n");

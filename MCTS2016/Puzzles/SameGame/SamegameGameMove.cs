@@ -21,7 +21,7 @@ namespace MCTS2016.Puzzles.SameGame
 
         public override string ToString()
         {
-            return "X: " + x + "   Y: " + y;
+            return "[X: " + x + "  Y: " + y+"]";
         }
 
         public static int GetX(int move)
