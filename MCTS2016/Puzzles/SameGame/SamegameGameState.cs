@@ -51,9 +51,9 @@ namespace MCTS2016.Puzzles.SameGame
                 levelBoard.Add(newList);
             }
 
-            foreach (List<int> column in levelBoard)
+            for (int i= 0;i<levelBoard.Count;i++)
             {
-                column.Reverse();
+                levelBoard[i].Reverse();
             }
             InitState(levelBoard, sim);
             
@@ -140,7 +140,7 @@ namespace MCTS2016.Puzzles.SameGame
             stateChanged = false;
             SamegameGameMove sgmove = move as SamegameGameMove;
             int value = board[sgmove.x][sgmove.y];
-            List<Tuple<int, int>> toRemove = new List<Tuple<int, int>>();
+            HashSet<Position> toRemove = new HashSet<Position>();
             CheckAdjacentBlocks(sgmove.x, sgmove.y, value, toRemove); //remove adjacent blocks
             if(toRemove.Count > 0)
             {
@@ -148,13 +148,12 @@ namespace MCTS2016.Puzzles.SameGame
                 score += (int) Math.Pow((toRemove.Count() - 2) ,2);
                 stateChanged = true;
             }
-            foreach (Tuple<int, int> block in toRemove)
-            {
-                board[block.Item1][block.Item2] = 1000;
+            foreach (Position position in toRemove) { 
+                board[position.X][position.Y] = 1000;
             }
-            foreach (List<int> column in board)
+            for(int i = 0; i < board.Count; i++)
             {
-                column.RemoveAll(v => v == 1000);
+                board[i].RemoveAll(v => v == 1000);
             }
             board.RemoveAll(column => column.Count == 0); //remove empty columns
         }
@@ -165,37 +164,37 @@ namespace MCTS2016.Puzzles.SameGame
         /// <param name="y"></param>
         /// <param name="value"></param>
         /// <param name="toRemove"></param>
-        private void CheckAdjacentBlocks(int x, int y, int value, List<Tuple<int,int>> toRemove) //should I use "out" for toRemove?
+        private void CheckAdjacentBlocks(int x, int y, int value, HashSet<Position> toRemove) //should I use "out" for toRemove?
         {
             if(x > 0 && board[x - 1].Count > y)
             {
-                if(board[x-1][y] == value && !toRemove.Contains(Tuple.Create<int, int>(x - 1, y)))
+                if(board[x-1][y] == value && !toRemove.Contains(new Position(x - 1, y)))
                 {
-                    toRemove.Add(Tuple.Create<int, int>(x - 1, y));
+                    toRemove.Add(new Position(x - 1, y));
                     CheckAdjacentBlocks(x - 1, y, value, toRemove);
                 }
             }
             if(x < board.Count -1 && board[x + 1].Count > y)
             {
-                if (board[x + 1][y] == value && !toRemove.Contains(Tuple.Create<int, int>(x + 1, y)))
+                if (board[x + 1][y] == value && !toRemove.Contains(new Position(x + 1, y)))
                 {
-                    toRemove.Add(Tuple.Create<int, int>(x + 1, y));
+                    toRemove.Add(new Position(x + 1, y));
                     CheckAdjacentBlocks(x + 1, y, value, toRemove);
                 }
             }
             if (y > 0)
             {
-                if (board[x][y-1] == value && !toRemove.Contains(Tuple.Create<int, int>(x, y - 1)))
+                if (board[x][y-1] == value && !toRemove.Contains(new Position(x, y - 1)))
                 {
-                    toRemove.Add(Tuple.Create<int, int>(x, y - 1));
+                    toRemove.Add(new Position(x, y - 1));
                     CheckAdjacentBlocks(x, y - 1, value, toRemove);
                 }
             }
             if (y < board[x].Count -1)
             {
-                if (board[x][y + 1] == value && !toRemove.Contains(Tuple.Create<int, int>(x, y + 1)))
+                if (board[x][y + 1] == value && !toRemove.Contains(new Position(x, y + 1)))
                 {
-                    toRemove.Add(Tuple.Create<int, int>(x, y + 1));
+                    toRemove.Add(new Position(x, y + 1));
                     CheckAdjacentBlocks(x, y + 1, value, toRemove);
                 }
             }
@@ -209,9 +208,9 @@ namespace MCTS2016.Puzzles.SameGame
         public List<int> GetBoard()
         {
             List<int> boardList = new List<int>();
-            foreach(List<int> column in board)
+            for(int i = 0; i < board.Count; i++)
             {
-                boardList.AddRange(column);
+                boardList.AddRange(board[i]);
             }
             return boardList;
         }
@@ -224,31 +223,68 @@ namespace MCTS2016.Puzzles.SameGame
         public List<IGameMove> GetMoves()
         {
             List<IGameMove> moves  = new List<IGameMove>();
-            int x = 0;
-            int y = 0;
-            List<Tuple<int, int>> alreadyChecked = new List<Tuple<int, int>>();
-            foreach (List<int> column in board)
+            HashSet<Position> alreadyChecked = new HashSet<Position>();
+            for (int x = 0; x < board.Count; x++)
             {
-                y = 0;
-                foreach(int value in column)
+                for(int y = 0; y < board[x].Count; y++)
                 {
-                    if(!alreadyChecked.Contains(Tuple.Create<int, int>(x, y))) //only check for unchecked blocks
+                    if(!alreadyChecked.Contains(new Position(x, y))) //only check for unchecked blocks
                     {
-                        List<Tuple<int, int>> group = new List<Tuple<int, int>>();
-                        CheckAdjacentBlocks(x, y, value, group); //group adjacent blocks together to have a single action for all of them
+                        HashSet<Position> group = new HashSet<Position>();
+                        CheckAdjacentBlocks(x, y, board[x][y], group); //group adjacent blocks together to have a single action for all of them
                         if (group.Count>0)
                         {
                             moves.Add(new SamegameGameMove(x, y));
-                            alreadyChecked.AddRange(group);
+                            alreadyChecked.UnionWith(group);
                         }
                     }
-                    y++;
                 }
-                x++;
             }
             return moves;
         }
-        
+        //it's slower than the recursive version
+        //void CheckAdjacentBlocksIterative(int x, int y, int value, HashSet<Position> toRemove)
+        //{
+        //    List<Position> frontier = new List<Position>();
+        //    frontier.Add(new Position(x, y));
+        //    while (frontier.Count > 0)
+        //    {
+        //        Position current = frontier.First<Position>();
+        //        if (current.X > 0 && board[current.X - 1].Count > current.Y)
+        //        {
+        //            if (board[current.X - 1][current.Y] == value && !toRemove.Contains(new Position(current.X - 1, current.Y)))
+        //            {
+        //                toRemove.Add(new Position(current.X - 1, current.Y));
+        //                frontier.Add(new Position(current.X - 1, current.Y));
+        //            }
+        //        }
+        //        if (current.X < board.Count - 1 && board[current.X + 1].Count > current.Y)
+        //        {
+        //            if (board[current.X + 1][current.Y] == value && !toRemove.Contains(new Position(current.X + 1, current.Y)))
+        //            {
+        //                toRemove.Add(new Position(current.X + 1, current.Y));
+        //                frontier.Add(new Position(current.X + 1, current.Y));
+        //            }
+        //        }
+        //        if (current.Y > 0)
+        //        {
+        //            if (board[current.X][current.Y - 1] == value && !toRemove.Contains(new Position(current.X, current.Y - 1)))
+        //            {
+        //                toRemove.Add(new Position(current.X, current.Y - 1));
+        //                frontier.Add(new Position(current.X, current.Y - 1));
+        //            }
+        //        }
+        //        if (current.Y < board[current.X].Count - 1)
+        //        {
+        //            if (board[current.X][current.Y + 1] == value && !toRemove.Contains(new Position(current.X, current.Y + 1)))
+        //            {
+        //                toRemove.Add(new Position(current.X, current.Y + 1));
+        //                frontier.Add(new Position(current.X, current.Y + 1));
+        //            }
+        //        }
+        //        frontier.Remove(current);
+        //    }
+        //}
 
         public int GetPositionIndex(int x, int y)
         {
@@ -281,12 +317,12 @@ namespace MCTS2016.Puzzles.SameGame
                 finalScore += 1000;
                 //Debug.WriteLine("Emptied board: score = "+finalScore);
             }
-            if (isTerminal() && board.Count > 0) //penalty of (number of blocks left -2)^2 if at the end the board is not empty
+            if (board.Count > 0 && isTerminal()) //penalty of (number of blocks left -2)^2 if at the end the board is not empty
             {
                 int remainingBlocks = 0;
-                foreach (List<int> column in board)
+                for(int i = 0; i < board.Count; i++)
                 {
-                    remainingBlocks += column.Count;
+                    remainingBlocks += board[i].Count;
                 }
                 if (remainingBlocks > 2)
                 {
@@ -341,6 +377,34 @@ namespace MCTS2016.Puzzles.SameGame
         public int Winner()
         {
             throw new NotImplementedException();
+        }
+    }
+
+    class Position
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+
+        public Position(int x,int y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public override bool Equals(object obj)
+        {
+            var position = obj as Position;
+            return position != null &&
+                   X == position.X &&
+                   Y == position.Y;
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = 1861411795;
+            hashCode = hashCode * -1521134295 + X.GetHashCode();
+            hashCode = hashCode * -1521134295 + Y.GetHashCode();
+            return hashCode;
         }
     }
 }

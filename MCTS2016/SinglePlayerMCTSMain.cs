@@ -96,7 +96,6 @@ namespace MCTS2016
             {
                 textWriter.Close();
             }
-            return;
         }
 
         private static void SokobanTest(double const_C, double const_D, double searchTime, int iterations, int restarts, string levelPath)
@@ -112,38 +111,37 @@ namespace MCTS2016
             {
                 ISimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(levels[i]);
                 
-                //Log(s.PrettyPrint());
                 int maxScore = int.MinValue;
-                string[] allMoves = new string[levels.Length];
+                List<IGameMove> bestMoveList = new List<IGameMove>();
                 for (int restartN = 0; restartN < restarts; restartN++)
                 {
+                    Console.WriteLine("Run " + restartN + " of " + restarts);
                     SamegameGameState s = new SamegameGameState(levels[i], simulationStrategy);
                     IGameMove move;
                     ISimulationStrategy player = new SamegameMCTSStrategy(iterations, searchTime, null, const_C, const_D);
                     //double startTime = DateTime.Now.TimeOfDay.TotalSeconds;//used to keep track of the time needed to solve each level
                     string moveString = string.Empty;
+                    List<IGameMove> moveList = new List<IGameMove>();
                     while (!s.isTerminal())
                     {
-
                         move = player.selectMove(s);
-                        //Log(move);
-                        moveString += move+" ";
+                        moveList.Add(move);
                         s.DoMove(move);
-                        //Log(s.GetScore(1));
-                        //Log(s.PrettyPrint());
                     }
                     if(s.GetScore(0) > maxScore)
                     {
                         maxScore = s.GetScore(0);
-                        allMoves[i] = moveString;
+                        bestMoveList = moveList;
                     }
                 }
-                //Log("Final configuration level " + (i + 1) + ": \n" + s.PrettyPrint()); //this describes the last run, not the best one
                 Log("Score level " + (i + 1) + ": " + maxScore);
-                Log("Moves level " + (i + 1) + ": " + allMoves[i]);
+                for(int moveCounter = 0; moveCounter < bestMoveList.Count; moveCounter++)
+                {
+                    Log("Move n." + (moveCounter + 1) + ": " + bestMoveList[moveCounter]);
+                }
+                //Log("Moves level " + (i + 1) + ": " + allMoves[i]);
                 totalScore += maxScore;
-                //double elapsedTime = DateTime.Now.TimeOfDay.TotalSeconds - startTime;
-                //Log("Time elapsed level " + (i+1) + ": " + Math.Truncate(elapsedTime / 60) + " minutes and " + Math.Truncate(elapsedTime % 60) + " seconds\n");
+                Console.WriteLine("Completed: "+(i+1)+"of"+levels.Length);
             }
             Log("TotalScore: " + totalScore);
             Log("TASK COMPLETED");

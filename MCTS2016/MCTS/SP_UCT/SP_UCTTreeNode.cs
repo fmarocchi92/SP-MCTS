@@ -32,7 +32,7 @@ namespace MCTS2016.MCTS.SP_UCT
             wins = 0;
             visits = 0;
             squaredReward = 0;
-            topScore = 0;
+            topScore = double.MinValue;
             playerWhoJustMoved = state.playerJustMoved;
             if (generateUntriedMoves)
             {
@@ -111,7 +111,7 @@ namespace MCTS2016.MCTS.SP_UCT
 
         public override string ToString()
         {
-            return "[M:" + move + " W/V:" + wins + "/" + visits + "]";
+            return "[M:" + move + " W/V/T:" + wins + "/" + visits + "/" +topScore + "]";
         }
 
         public string TreeToString(int indent)
