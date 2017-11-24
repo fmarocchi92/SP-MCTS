@@ -115,7 +115,7 @@ namespace MCTS2016
                 List<IGameMove> bestMoveList = new List<IGameMove>();
                 for (int restartN = 0; restartN < restarts; restartN++)
                 {
-                    Console.WriteLine("Run " + restartN + " of " + restarts);
+                    Console.Write("\rRun " + (restartN+1) + " of " + restarts+"  ");
                     SamegameGameState s = new SamegameGameState(levels[i], simulationStrategy);
                     IGameMove move;
                     ISimulationStrategy player = new SamegameMCTSStrategy(iterations, searchTime, null, const_C, const_D);
@@ -141,7 +141,7 @@ namespace MCTS2016
                 }
                 //Log("Moves level " + (i + 1) + ": " + allMoves[i]);
                 totalScore += maxScore;
-                Console.WriteLine("Completed: "+(i+1)+"of"+levels.Length);
+                Console.WriteLine("Completed: "+(i+1)+" of "+levels.Length+"  ");
             }
             Log("TotalScore: " + totalScore);
             Log("TASK COMPLETED");

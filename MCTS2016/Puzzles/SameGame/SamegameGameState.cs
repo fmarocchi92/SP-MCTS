@@ -242,6 +242,46 @@ namespace MCTS2016.Puzzles.SameGame
             }
             return moves;
         }
+
+        private bool HasMoves()
+        {
+            for (int x = 0; x < board.Count; x++)
+            {
+                for (int y = 0; y < board[x].Count; y++)
+                {
+                    int value = board[x][y];
+                    if (x > 0 && board[x - 1].Count > y)
+                    {
+                        if (board[x - 1][y] == value)
+                        {
+                            return true;
+                        }
+                    }
+                    if (x < board.Count - 1 && board[x + 1].Count > y)
+                    {
+                        if (board[x + 1][y] == value )
+                        {
+                            return true;
+                        }
+                    }
+                    if (y > 0)
+                    {
+                        if (board[x][y - 1] == value )
+                        {
+                            return true;
+                        }
+                    }
+                    if (y < board[x].Count - 1)
+                    {
+                        if (board[x][y + 1] == value)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
         //it's slower than the recursive version
         //void CheckAdjacentBlocksIterative(int x, int y, int value, HashSet<Position> toRemove)
         //{
@@ -339,7 +379,7 @@ namespace MCTS2016.Puzzles.SameGame
 
         public bool isTerminal()
         {
-            return EndState() || GetMoves().Count == 0;
+            return EndState() || !HasMoves();
         }
 
         public void Pass()

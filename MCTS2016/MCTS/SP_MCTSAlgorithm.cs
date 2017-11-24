@@ -23,16 +23,10 @@ namespace MCTS2016.MCTS
             this.treeCreator = treeCreator;
         }
 
-        public List<IGameMove> Solve(IGameState rootState, int iterations)
+        public List<IGameMove> Solve(IGameState rootState, int iterations, double maxTimeInMinutes = 5)
         {
-            List<IGameMove> moves = new List<IGameMove>();
-            while (!rootState.isTerminal())
-            {
-                IGameMove bestMove = Search(rootState, iterations);
-                rootState.DoMove(bestMove);
-                moves.Add(bestMove);
-            }
-            return moves;
+            IGameMove bestMove = Search(rootState, iterations, maxTimeInMinutes);
+            return bestRollout;
         }
 
         public IGameMove Search(IGameState rootState, int iterations, double maxTimeInMinutes = 5)
