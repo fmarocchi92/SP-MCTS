@@ -21,13 +21,15 @@ namespace MCTS2016.MCTS.SP_UCT
         protected double const_D;
         private double squaredReward;
         private double topScore;
+        private MersenneTwister rnd;
 
-        public SP_UCTTreeNode(IGameMove move, SP_UCTTreeNode parent, IGameState state, double const_C = 1, double const_D = 20000, bool generateUntriedMoves = true)
+        public SP_UCTTreeNode(IGameMove move, SP_UCTTreeNode parent, IGameState state, MersenneTwister rng, double const_C = 1, double const_D = 20000, bool generateUntriedMoves = true)
         {
             this.move = move;
             this.parent = parent;
             this.const_C = const_C;
             this.const_D = const_D;
+            rnd = rng;
             childNodes = new List<SP_UCTTreeNode>();
             wins = 0;
             visits = 0;
@@ -69,7 +71,7 @@ namespace MCTS2016.MCTS.SP_UCT
 
         public virtual ITreeNode AddChild(IGameMove move, IGameState state)
         {
-            SP_UCTTreeNode n = new SP_UCTTreeNode(move, this, state, const_C);
+            SP_UCTTreeNode n = new SP_UCTTreeNode(move, this, state, rnd, const_C,const_D);
             untriedMoves.Remove(move);
             childNodes.Add(n);
             return n;
@@ -86,7 +88,7 @@ namespace MCTS2016.MCTS.SP_UCT
 
         public IGameMove SelectUntriedMove()
         {
-            return untriedMoves[RNG.Next(untriedMoves.Count)];
+            return untriedMoves[rnd.Next(untriedMoves.Count)];
         }
 
         /// <summary>

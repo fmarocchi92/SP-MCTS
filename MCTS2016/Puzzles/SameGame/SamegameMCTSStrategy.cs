@@ -1,4 +1,5 @@
-﻿using Common.Abstract;
+﻿using Common;
+using Common.Abstract;
 using MCTS.Standard.Utils;
 using MCTS.Standard.Utils.UCT;
 using MCTS2016.MCTS;
@@ -14,16 +15,16 @@ namespace MCTS2016.Puzzles.SameGame
     class SamegameMCTSStrategy : IMCTSSimulationStrategy
     {
         private SP_MCTSAlgorithm mcts;
-
+        private MersenneTwister rng;
         private double maxTimeInMinutes;
 
         public int iterations { get; set; }
 
-        public SamegameMCTSStrategy(int iterations = 1000, double maxTimeInMinutes = 5, SP_MCTSAlgorithm mcts = null, double const_C = 4.31, double const_D = 96.67)
+        public SamegameMCTSStrategy(MersenneTwister rng,int iterations = 1000, double maxTimeInMinutes = 5, SP_MCTSAlgorithm mcts = null, double const_C = 4.31, double const_D = 96.67)
         {
             if (mcts == null)
             {
-                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D));
+                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D, rng));
             }
             this.mcts = mcts;
             this.iterations = iterations;

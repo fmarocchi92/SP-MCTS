@@ -1,4 +1,5 @@
-﻿using Common.Abstract;
+﻿using Common;
+using Common.Abstract;
 using MCTS.Standard.Utils;
 using System;
 using System.Collections.Generic;
@@ -12,16 +13,17 @@ namespace MCTS2016.MCTS.SP_UCT
     {
         private double const_C;
         private double const_D;
-
-        public SP_UCTTreeNodeCreator(double constant, double const_D)
+        private MersenneTwister rnd;
+        public SP_UCTTreeNodeCreator(double constant, double const_D, MersenneTwister rng)
         {
+            rnd = rng;
             this.const_C = constant;
             this.const_D = const_D;
         }
 
         public ITreeNode GenRootNode(IGameState rootState)
         {
-            return new SP_UCTTreeNode(null, null, rootState, const_C,const_D);
+            return new SP_UCTTreeNode(null, null, rootState, rnd,const_C,const_D);
         }
 
         public override string ToString()

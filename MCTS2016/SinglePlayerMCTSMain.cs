@@ -6,21 +6,28 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MCTS2016
 {
     class SinglePlayerMCTSMain
     {
-
+        private static Object taskLock = new object();
+        private static int[] taskTaken;
+        private static int[] scores;
+        private static List<IGameMove>[] bestMoves;
+        private static int currentTaskIndex=0;
+        private static uint threadIndex;
+        private static int restarts;
         static TextWriter textWriter;
         /// <summary>
         /// - game
         /// - constC
         /// - constD
-        /// - time per search in minutes
         /// - iterations per search
         /// - number of randomized restarts
+        /// - maximum number of threads
         /// - seed
         /// - log path
         /// - level path
@@ -47,22 +54,22 @@ namespace MCTS2016
                 PrintInputError("Const_D requires a double value");
                 return;
             }
-            double searchTime;
-            if (!double.TryParse(args[3], out searchTime))
-            {
-                PrintInputError("search time requires a double value");
-                return;
-            }
             int iterations;
-            if (!int.TryParse(args[4], out iterations))
+            if (!int.TryParse(args[3], out iterations))
             {
                 PrintInputError("iterations requires an integer value");
                 return;
             }
             int restarts;
-            if (!int.TryParse(args[5], out restarts))
+            if (!int.TryParse(args[4], out restarts))
             {
                 PrintInputError("number of restarts requires an integer value");
+                return;
+            }
+            int maxThread;
+            if (!int.TryParse(args[5], out maxThread))
+            {
+                PrintInputError("maximum number of threads requires an integer value");
                 return;
             }
             uint seed;
@@ -71,80 +78,111 @@ namespace MCTS2016
                 PrintInputError("seed requires an unsigned integer value");
                 return;
             }
-            RNG.Seed(seed);
+            //RNG.Seed(seed);
             string logPath = args[7];
             textWriter = File.AppendText(logPath);
             string levelPath = args[8];
-            Log("BEGIN TASK: " + game+" - const_C: "+const_C + " - const_D: " + const_D+" - minutes per move: "+searchTime+" - iterations per move: "+iterations + " - restarts: " + restarts);
-            if (game.Equals("sokoban")){
-                
-            }else if (game.Equals("samegame"))
+            Log("BEGIN TASK: " + game + " - const_C: " + const_C + " - const_D: " + const_D + " - iterations per move: " + iterations + " - restarts: " + restarts + " - max threads: "+maxThread);
+
+            if (game.Equals("sokoban"))
             {
-                SamegameTest(const_C, const_D, searchTime, iterations, restarts, levelPath);
+
+            }
+            else if (game.Equals("samegame"))
+            {
+
+                MultiThreadSamegameTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
+
             }
             else
             {
                 PrintInputError("Game must have value 'sokoban' or 'samegame'");
             }
-            textWriter.Close();
+            //textWriter.Close();
         }
 
         private static void PrintInputError(string errorMessage)
         {
-            Console.WriteLine(errorMessage+".\nArguments list:\n - game\n -const_C\n -const_D\n -time per search\n -iterations per search\n -seed\n -log path\n -level path");
+            Console.WriteLine(errorMessage + ".\nArguments list:\n - game\n -const_C\n -const_D\n -iterations per search\n -number of randomized restarts\n -maximum number of threads\n -seed\n -log path\n -level path");
             if (textWriter != null)
             {
                 textWriter.Close();
             }
         }
 
-        private static void SokobanTest(double const_C, double const_D, double searchTime, int iterations, int restarts, string levelPath)
+        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath)
         {
-            
+
         }
 
-        private static void SamegameTest(double const_C, double const_D, double searchTime, int iterations, int restarts, string levelPath)
+        private static void MultiThreadSamegameTest(double const_C, double const_D, int iterations, int restarts, string levelPath, int threadNumber, uint seed)
         {
             string[] levels = ReadSamegameLevels(levelPath);
-            int totalScore = 0;
-            for (int i = 0; i < levels.Length; i++)
+            taskTaken = new int[levels.Length];
+            scores = new int[levels.Length];
+            SinglePlayerMCTSMain.restarts = restarts;
+            bestMoves = new List<IGameMove>[levels.Length];
+            for (int i = 0; i < scores.Length; i++)
             {
-                ISimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(levels[i]);
-                
-                int maxScore = int.MinValue;
-                List<IGameMove> bestMoveList = new List<IGameMove>();
-                for (int restartN = 0; restartN < restarts; restartN++)
-                {
-                    Console.Write("\rRun " + (restartN+1) + " of " + restarts+"  ");
-                    SamegameGameState s = new SamegameGameState(levels[i], simulationStrategy);
-                    IGameMove move;
-                    ISimulationStrategy player = new SamegameMCTSStrategy(iterations, searchTime, null, const_C, const_D);
-                    //double startTime = DateTime.Now.TimeOfDay.TotalSeconds;//used to keep track of the time needed to solve each level
-                    string moveString = string.Empty;
-                    List<IGameMove> moveList = new List<IGameMove>();
-                    while (!s.isTerminal())
-                    {
-                        move = player.selectMove(s);
-                        moveList.Add(move);
-                        s.DoMove(move);
-                    }
-                    if(s.GetScore(0) > maxScore)
-                    {
-                        maxScore = s.GetScore(0);
-                        bestMoveList = moveList;
-                    }
-                }
-                Log("Score level " + (i + 1) + ": " + maxScore);
-                for(int moveCounter = 0; moveCounter < bestMoveList.Count; moveCounter++)
-                {
-                    Log("Move n." + (moveCounter + 1) + ": " + bestMoveList[moveCounter]);
-                }
-                //Log("Moves level " + (i + 1) + ": " + allMoves[i]);
-                totalScore += maxScore;
-                Console.WriteLine("Completed: "+(i+1)+" of "+levels.Length+"  ");
+                scores[i] = int.MinValue;
             }
-            Log("TotalScore: " + totalScore);
-            Log("TASK COMPLETED");
+            int threadCount = Math.Min(Environment.ProcessorCount, threadNumber);
+            Thread[] threads = new Thread[threadCount];
+            for (int i = 0; i < threadCount; i++)
+            {
+                threads[i] = new Thread(() => SamegameTest(const_C, const_D, iterations, restarts, levels, seed));
+                threads[i].Start();
+            }
+            for (int i = 0; i < threadCount; i++)
+            {
+                threads[i].Join();
+            }
+            int totalScore = 0;
+            for(int i = 0; i < scores.Length; i++)
+            {
+                totalScore += scores[i];
+                Log("Level "+(i+1)+" score: "+scores[i]);
+                for(int j=0;j<bestMoves[i].Count;j++)
+                {
+                    Log("Level " + (i+1) + " - move "+ j+": "+ bestMoves[i][j]);
+                }
+            }
+            Log("Total score:" + totalScore);
+            textWriter.Close();
+        }
+
+        private static void SamegameTest(double const_C, double const_D, int iterations, int restarts, string[] levels, uint seed)
+        {
+            uint threadIndex = GetThreadIndex();
+            Console.WriteLine("Thread "+ threadIndex +" started");
+            MersenneTwister rnd = new MersenneTwister(seed+threadIndex);
+            int currentLevelIndex = GetTaskIndex(threadIndex);
+            while (currentLevelIndex >= 0)
+            {
+                ISimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(levels[currentLevelIndex],rnd);
+                //Console.Write("\rRun " + (restartN + 1) + " of " + restarts + "  ");
+                SamegameGameState s = new SamegameGameState(levels[currentLevelIndex], rnd, simulationStrategy);
+                IGameMove move;
+                ISimulationStrategy player = new SamegameMCTSStrategy(rnd,iterations, 600, null, const_C, const_D);
+                string moveString = string.Empty;
+                List<IGameMove> moveList = new List<IGameMove>();
+                while (!s.isTerminal())
+                {
+                    move = player.selectMove(s);
+                    moveList.Add(move);
+                    s.DoMove(move);
+                }
+                lock (taskLock)
+                {
+                    if (s.GetScore(0) > scores[currentLevelIndex])
+                    {
+                        scores[currentLevelIndex] = s.GetScore(0);
+                        bestMoves[currentLevelIndex] = moveList;
+                    }
+                }
+                currentLevelIndex = GetTaskIndex(threadIndex);
+            }
+            
         }
 
         private static string[] ReadSamegameLevels(string levelPath)
@@ -152,16 +190,48 @@ namespace MCTS2016
             StreamReader reader = File.OpenText(levelPath);
             string fullString = reader.ReadToEnd();
             reader.Close();
-            string[] levels = fullString.Split(new string[] {"#"}, StringSplitOptions.RemoveEmptyEntries);
+            string[] levels = fullString.Split(new string[] { "#" }, StringSplitOptions.RemoveEmptyEntries);
             return levels;
+        }
+
+        private static int GetTaskIndex( uint threadIndex)
+        {
+            lock (taskLock)
+            {
+                for (int i = 0; i < taskTaken.Length; i++)
+                {
+                    if (taskTaken[i] < restarts && i%SinglePlayerMCTSMain.threadIndex == threadIndex)
+                    {
+                        taskTaken[i]++;
+                        return i;
+                    }
+                    if (taskTaken[i] == restarts )
+                    {
+                        taskTaken[i]++;
+                        Console.WriteLine("Level " + (i+1) + " completed");
+                    }
+                }
+                return -1;
+            }
+        }
+
+        private static uint GetThreadIndex()
+        {
+            lock (taskLock)
+            {
+                return threadIndex++;
+            }
         }
 
         public static void Log(string logMessage, bool autoFlush = true)
         {
-            textWriter.WriteLine("{0} - {1}  :  {2}", DateTime.Now.ToShortDateString(), DateTime.Now.ToLongTimeString(), logMessage);
-            if (autoFlush)
+            lock (taskLock)
             {
-                textWriter.Flush();
+                textWriter.WriteLine("{0} - {1}  :  {2}", DateTime.Now.ToShortDateString(), DateTime.Now.ToLongTimeString(), logMessage);
+                if (autoFlush)
+                {
+                    textWriter.Flush();
+                }
             }
         }
     }

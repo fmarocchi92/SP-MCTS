@@ -11,8 +11,8 @@ namespace MCTS2016.Puzzles.SameGame
     class SamegameTabuColorRandomStrategy : ISimulationStrategy
     {
         private int selectedColor;
-
-        public SamegameTabuColorRandomStrategy(SamegameGameState initialState)
+        private MersenneTwister rnd;
+        public SamegameTabuColorRandomStrategy(SamegameGameState initialState,MersenneTwister rng)
         {
             int[] counters = new int[initialState.GetBoard().Count];
             foreach(int value in initialState.GetBoard())
@@ -30,9 +30,10 @@ namespace MCTS2016.Puzzles.SameGame
                 }
             }
             selectedColor = selectedValue;
+            rnd = rng;
         }
 
-        public SamegameTabuColorRandomStrategy(int[][] level)
+        public SamegameTabuColorRandomStrategy(int[][] level, MersenneTwister rng)
         {
             int[] counters = new int[level.Length];
             foreach (int[] row in level)
@@ -53,11 +54,11 @@ namespace MCTS2016.Puzzles.SameGame
                 }
             }
             selectedColor = selectedValue;
+            rnd = rng;
         }
 
-        public SamegameTabuColorRandomStrategy(string level)
+        public SamegameTabuColorRandomStrategy(string level, MersenneTwister rng)
         {
-            //TODO check if this works
             string[] rows = level.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
             int[][] levelArray = new int[rows.Length][];
             for(int i=0; i<levelArray.Length;i++)
@@ -79,7 +80,6 @@ namespace MCTS2016.Puzzles.SameGame
                     counters[value]++;
                 }
             }
-            
 
             //for (int i = 0; i < counters.Length; i++)
             //{
@@ -97,6 +97,8 @@ namespace MCTS2016.Puzzles.SameGame
                 }
             }
             selectedColor = selectedValue;
+            
+            rnd = rng;
         }
 
         public string getFriendlyName()
@@ -113,16 +115,16 @@ namespace MCTS2016.Puzzles.SameGame
         {
             List<IGameMove> moves = gameState.GetMoves();
             
-            if (RNG.NextDouble() <= 0.00007) //epsilon greedy
+            if (rnd.NextDouble() <= 0.00007) //epsilon greedy
             {
-                return moves[RNG.Next(moves.Count)];
+                return moves[rnd.Next(moves.Count)];
             }
             moves.RemoveAll(item => gameState.GetBoard(SamegameGameMove.GetX(item), SamegameGameMove.GetY(item))==selectedColor);
             if (moves.Count == 0)
             {
                 moves = gameState.GetMoves();
             }
-            IGameMove selectedMove = moves[RNG.Next(moves.Count)];
+            IGameMove selectedMove = moves[rnd.Next(moves.Count)];
             return selectedMove;
         }
     }

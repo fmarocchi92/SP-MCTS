@@ -27,6 +27,8 @@ namespace MCTS2016.Puzzles.SameGame
 
         private ISimulationStrategy simulationStrategy;
 
+        private MersenneTwister rnd;
+
         private SamegameGameState()
         {
 
@@ -37,7 +39,7 @@ namespace MCTS2016.Puzzles.SameGame
         /// </summary>
         /// <param name="levelBoardToTranspose">An array containing the rows of the level</param>
         /// <param name="sim"></param>
-        public SamegameGameState(int[][] levelBoardToTranspose, ISimulationStrategy sim = null)
+        public SamegameGameState(int[][] levelBoardToTranspose, MersenneTwister rng,ISimulationStrategy sim = null)
         {
             //Transform arrays into lists 
             List<List<int>> levelBoard = new List<List<int>>();
@@ -55,16 +57,17 @@ namespace MCTS2016.Puzzles.SameGame
             {
                 levelBoard[i].Reverse();
             }
-            InitState(levelBoard, sim);
+            InitState(levelBoard, sim, rng);
             
         }
-        public SamegameGameState(List<List<int>> levelBoard, ISimulationStrategy sim = null)
+        public SamegameGameState(List<List<int>> levelBoard, MersenneTwister rng, ISimulationStrategy sim = null)
         {
-            InitState(levelBoard, sim);
+            InitState(levelBoard, sim, rng);
         }
 
-        private void InitState(List<List<int>> levelBoard, ISimulationStrategy sim)
+        private void InitState(List<List<int>> levelBoard, ISimulationStrategy sim,MersenneTwister rng)
         {
+            rnd = rng;
             board = levelBoard;
             size = board.Count;
             if (sim == null)
@@ -78,8 +81,9 @@ namespace MCTS2016.Puzzles.SameGame
         }
         
         
-        public SamegameGameState(string level, ISimulationStrategy sim = null)
+        public SamegameGameState(string level, MersenneTwister rng, ISimulationStrategy sim = null)
         {
+            rnd = rng;
             String[] levelRows = level.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
             board = new List<List<int>>();
             foreach (string row in levelRows)
@@ -132,6 +136,7 @@ namespace MCTS2016.Puzzles.SameGame
                 simulationStrategy = this.simulationStrategy,
                 score = this.score,
                 size = this.size,
+                rnd = this.rnd
             };
         }
 
@@ -230,12 +235,13 @@ namespace MCTS2016.Puzzles.SameGame
                 {
                     if(!alreadyChecked.Contains(new Position(x, y))) //only check for unchecked blocks
                     {
-                        HashSet<Position> group = new HashSet<Position>();
-                        CheckAdjacentBlocks(x, y, board[x][y], group); //group adjacent blocks together to have a single action for all of them
-                        if (group.Count>0)
+                        int previousCheckedCount = alreadyChecked.Count;
+                        //HashSet<Position> group = new HashSet<Position>();
+                        CheckAdjacentBlocks(x, y, board[x][y], alreadyChecked); //group adjacent blocks together to have a single action for all of them
+                        if (alreadyChecked.Count> previousCheckedCount)
                         {
                             moves.Add(new SamegameGameMove(x, y));
-                            alreadyChecked.UnionWith(group);
+                            //alreadyChecked.UnionWith(group);
                         }
                     }
                 }
@@ -340,7 +346,7 @@ namespace MCTS2016.Puzzles.SameGame
         public IGameMove GetRandomMove()
         {
             List<IGameMove> moves = GetMoves();
-            int rndIndex = RNG.Next(moves.Count);
+            int rndIndex = rnd.Next(moves.Count);
             return moves[rndIndex];
         }
 
@@ -425,6 +431,11 @@ namespace MCTS2016.Puzzles.SameGame
         public int X { get; set; }
         public int Y { get; set; }
 
+        public static int Id(int x,int y)
+        {
+            return x * 1000 + y;
+        }
+        
         public Position(int x,int y)
         {
             X = x;

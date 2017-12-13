@@ -451,12 +451,12 @@ class MainClass
         for(int i = 0; i < preset.Length; i++)
         {
             //ISimulationStrategy simulationStrategy = new SamegameRandomStrategy();
-            ISimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(preset[i]);
-            SamegameGameState s = new SamegameGameState(preset[i], simulationStrategy);
+            ISimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(preset[i],null);
+            SamegameGameState s = new SamegameGameState(preset[i], null, simulationStrategy);
             //Debug.WriteLine(s.PrettyPrint());
 
             IGameMove move;
-            ISimulationStrategy player = new SamegameMCTSStrategy(1000,0.1);
+            ISimulationStrategy player = new SamegameMCTSStrategy(null,1000,0.1);
             double startTime = DateTime.Now.TimeOfDay.TotalSeconds;//used to keep track of the time needed to solve each level
             while (!s.isTerminal())
             {
