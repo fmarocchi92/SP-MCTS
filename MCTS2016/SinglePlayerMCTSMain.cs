@@ -138,14 +138,12 @@ namespace MCTS2016
                 threads[i].Join();
             }
             int totalScore = 0;
+            Log("*** FINAL RESULT ***");
             for(int i = 0; i < scores.Length; i++)
             {
                 totalScore += scores[i];
                 Log("Level "+(i+1)+" score: "+scores[i]);
-                for(int j=0;j<bestMoves[i].Count;j++)
-                {
-                    Log("Level " + (i+1) + " - move "+ j+": "+ bestMoves[i][j]);
-                }
+                PrintMoveList(i, bestMoves[i]);
             }
             Log("Total score:" + totalScore);
             textWriter.Close();
@@ -178,6 +176,13 @@ namespace MCTS2016
                     {
                         scores[currentLevelIndex] = s.GetScore(0);
                         bestMoves[currentLevelIndex] = moveList;
+                        Log("Completed run " + taskTaken[currentLevelIndex] + "/" + restarts + " of level " + (currentLevelIndex + 1) + ". New top score found: " + scores[currentLevelIndex]);
+                        PrintMoveList(currentLevelIndex, moveList);
+                        PrintBestScore();
+                    }
+                    else
+                    {
+                        Log("Completed run " + taskTaken[currentLevelIndex] + "/" + restarts + " of level " + (currentLevelIndex + 1) + " with score: " + s.GetScore(0));
                     }
                 }
                 currentLevelIndex = GetTaskIndex(threadIndex);
@@ -208,7 +213,7 @@ namespace MCTS2016
                     if (taskTaken[i] == restarts )
                     {
                         taskTaken[i]++;
-                        Console.WriteLine("Level " + (i+1) + " completed");
+                        //Console.WriteLine("Level " + (i+1) + " completed");
                     }
                 }
                 return -1;
@@ -221,6 +226,29 @@ namespace MCTS2016
             {
                 return threadIndex++;
             }
+        }
+
+        public static void PrintMoveList(int level, List<IGameMove> moves)
+        {
+            for(int i = 0; i < moves.Count; i++)
+            {
+                Log("Level " + (level + 1) + " - move " + i + ": " + moves[i]);
+            }
+        }
+
+        public static void PrintBestScore()
+        {
+            int partialScore = 0;
+            int scoresCount = 0;
+            for (int i = 0; i < scores.Length; i++)
+            {
+                if (scores[i] > int.MinValue)
+                {
+                    partialScore += scores[i];
+                    scoresCount++;
+                }
+            }
+            Log("Partial score : " + partialScore + " on " + scoresCount + " levels");
         }
 
         public static void Log(string logMessage, bool autoFlush = true)

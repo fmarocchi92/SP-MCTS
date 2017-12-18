@@ -1,5 +1,6 @@
 ﻿using Common;
 using Common.Abstract;
+using MCTS2016.Puzzles.SameGame;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -48,6 +49,8 @@ namespace MCTS2016.Puzzles.Sokoban
 
         private int playerX;
         private int playerY;
+
+        private List<Position> simpleDeadlock;
 
         private ISimulationStrategy simulationStrategy;
 
@@ -106,6 +109,47 @@ namespace MCTS2016.Puzzles.Sokoban
                 playerY = playerY,
                 simulationStrategy = simulationStrategy
             };
+        }
+
+        List<Position> FindDeadlockPositions()
+        {
+            List<Position> deadlockPositions = new List<Position>();
+            List<Position> goals = new List<Position>();
+            int[,] backupBoard = board.Clone() as int[,];
+            for(int x = 0; x < board.GetLength(0); x++)
+            {
+                for(int y = 0; y < board.GetLength(1); y++)
+                {
+                    if (board[x, y] == BOX || board[x, y] == PLAYER)
+                        board[x,y] = EMPTY;
+                    if (board[x, y] == BOX_ON_GOAL || board[x, y] == PLAYER_ON_GOAL)
+                        board[x, y] = GOAL;
+                    if(board[x, y] == GOAL){
+                        goals.Add(new Position(x,y));
+                    }
+                }
+            }
+            foreach(Position goal in goals)
+            {
+                ResetBoard();
+
+            }
+
+            return deadlockPositions;
+        }
+
+        void ResetBoard()
+        {
+            for (int x = 0; x < board.GetLength(0); x++)
+            {
+                for (int y = 0; y < board.GetLength(1); y++)
+                {
+                    if (board[x, y] == BOX || board[x, y] == PLAYER)
+                        board[x, y] = EMPTY;
+                    if (board[x, y] == BOX_ON_GOAL || board[x, y] == PLAYER_ON_GOAL)
+                        board[x, y] = GOAL;
+                }
+            }
         }
 
         public void DoMove(IGameMove move)
@@ -197,6 +241,45 @@ namespace MCTS2016.Puzzles.Sokoban
                 playerY += yDirection;
             }
         }
+
+        private void PullBox(int xDirection, int yDirection)
+        {
+            if (board[playerX - xDirection, playerY - yDirection] == EMPTY || board[playerX - xDirection, playerY - yDirection] == GOAL)
+            {
+                if (board[playerX, playerY] == PLAYER)
+                {
+                    board[playerX, playerY] = BOX;
+                }
+                else
+                {
+                    board[playerX, playerY] = BOX_ON_GOAL;
+
+                }
+                stateChanged = true;
+            }
+            if (stateChanged)
+            {
+                if (board[playerX + xDirection, playerY + yDirection] == BOX)
+                {
+                    board[playerX + xDirection, playerY + yDirection] = EMPTY;
+                }
+                else if (board[playerX + xDirection, playerY + yDirection] == BOX_ON_GOAL)
+                {
+                    board[playerX + xDirection, playerY + yDirection] = GOAL;
+                }
+                if (board[playerX - xDirection, playerY - yDirection] == EMPTY)
+                {
+                    board[playerX - xDirection, playerY - yDirection] = PLAYER;
+                }
+                else if (board[playerX - xDirection, playerY - yDirection] == GOAL)
+                {
+                    board[playerX - xDirection, playerY - yDirection] = PLAYER_ON_GOAL;
+                }
+                playerX -= xDirection;
+                playerY -= yDirection;
+            }
+        }
+
 
         public bool EndState()
         {
