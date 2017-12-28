@@ -1,5 +1,7 @@
 ﻿using Common;
 using Common.Abstract;
+using MCTS2016.Common.Abstract;
+using MCTS2016.SP_MCTS;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,13 +11,8 @@ using System.Threading.Tasks;
 
 namespace MCTS2016.Puzzles.SameGame
 {
-    class SamegameGameState : IGameState
+    class SamegameGameState : IPuzzleState
     {
-        public int playerJustMoved => 1;
-
-        public int currentPlayer => 1;
-
-        public int numberOfPlayers => 1;
 
         public int size {get;set;}
 
@@ -25,7 +22,7 @@ namespace MCTS2016.Puzzles.SameGame
 
         private bool stateChanged = false;
 
-        private ISimulationStrategy simulationStrategy;
+        private ISPSimulationStrategy simulationStrategy;
 
         private MersenneTwister rnd;
 
@@ -39,7 +36,7 @@ namespace MCTS2016.Puzzles.SameGame
         /// </summary>
         /// <param name="levelBoardToTranspose">An array containing the rows of the level</param>
         /// <param name="sim"></param>
-        public SamegameGameState(int[][] levelBoardToTranspose, MersenneTwister rng,ISimulationStrategy sim = null)
+        public SamegameGameState(int[][] levelBoardToTranspose, MersenneTwister rng,ISPSimulationStrategy sim = null)
         {
             //Transform arrays into lists 
             List<List<int>> levelBoard = new List<List<int>>();
@@ -60,12 +57,12 @@ namespace MCTS2016.Puzzles.SameGame
             InitState(levelBoard, sim, rng);
             
         }
-        public SamegameGameState(List<List<int>> levelBoard, MersenneTwister rng, ISimulationStrategy sim = null)
+        public SamegameGameState(List<List<int>> levelBoard, MersenneTwister rng, ISPSimulationStrategy sim = null)
         {
             InitState(levelBoard, sim, rng);
         }
 
-        private void InitState(List<List<int>> levelBoard, ISimulationStrategy sim,MersenneTwister rng)
+        private void InitState(List<List<int>> levelBoard, ISPSimulationStrategy sim,MersenneTwister rng)
         {
             rnd = rng;
             board = levelBoard;
@@ -81,7 +78,7 @@ namespace MCTS2016.Puzzles.SameGame
         }
         
         
-        public SamegameGameState(string level, MersenneTwister rng, ISimulationStrategy sim = null)
+        public SamegameGameState(string level, MersenneTwister rng, ISPSimulationStrategy sim = null)
         {
             rnd = rng;
             String[] levelRows = level.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
@@ -118,7 +115,7 @@ namespace MCTS2016.Puzzles.SameGame
             }
         }
 
-        public IGameState Clone()
+        public IPuzzleState Clone()
         {
             List<List<int>> boardCopy = new List<List<int>>(); ;
             foreach(List<int> column in board)
@@ -140,7 +137,7 @@ namespace MCTS2016.Puzzles.SameGame
             };
         }
 
-        public void DoMove(IGameMove move)
+        public void DoMove(IPuzzleMove move)
         {
             stateChanged = false;
             SamegameGameMove sgmove = move as SamegameGameMove;
@@ -225,9 +222,9 @@ namespace MCTS2016.Puzzles.SameGame
             return board[x][y];
         }
 
-        public List<IGameMove> GetMoves()
+        public List<IPuzzleMove> GetMoves()
         {
-            List<IGameMove> moves  = new List<IGameMove>();
+            List<IPuzzleMove> moves  = new List<IPuzzleMove>();
             HashSet<Position> alreadyChecked = new HashSet<Position>();
             for (int x = 0; x < board.Count; x++)
             {
@@ -343,19 +340,19 @@ namespace MCTS2016.Puzzles.SameGame
             return i;
         }
 
-        public IGameMove GetRandomMove()
+        public IPuzzleMove GetRandomMove()
         {
-            List<IGameMove> moves = GetMoves();
+            List<IPuzzleMove> moves = GetMoves();
             int rndIndex = rnd.Next(moves.Count);
             return moves[rndIndex];
         }
 
-        public double GetResult(int player)
+        public double GetResult()
         {
-            return GetScore(1);
+            return GetScore();
         }
 
-        public int GetScore(int player)
+        public int GetScore()
         {
             int finalScore = score;
             if(board.Count == 0) //bonus of 1000 if the board is empty 
@@ -378,7 +375,7 @@ namespace MCTS2016.Puzzles.SameGame
             return finalScore;
         }
 
-        public IGameMove GetSimulationMove()
+        public IPuzzleMove GetSimulationMove()
         {
             return simulationStrategy.selectMove(this);
         }
@@ -410,7 +407,7 @@ namespace MCTS2016.Puzzles.SameGame
             return s;
         }
 
-        public void Restart(int _player = 1)
+        public void Restart()
         {
             throw new NotImplementedException();
         }

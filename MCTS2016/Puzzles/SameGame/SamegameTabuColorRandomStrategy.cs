@@ -1,5 +1,7 @@
 ﻿using Common;
 using Common.Abstract;
+using MCTS2016.Common.Abstract;
+using MCTS2016.SP_MCTS;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace MCTS2016.Puzzles.SameGame
 {
-    class SamegameTabuColorRandomStrategy : ISimulationStrategy
+    class SamegameTabuColorRandomStrategy : ISPSimulationStrategy
     {
         private int selectedColor;
         private MersenneTwister rnd;
@@ -111,9 +113,9 @@ namespace MCTS2016.Puzzles.SameGame
             return GetType().Name;
         }
 
-        public IGameMove selectMove(IGameState gameState)
+        public IPuzzleMove selectMove(IPuzzleState gameState)
         {
-            List<IGameMove> moves = gameState.GetMoves();
+            List<IPuzzleMove> moves = gameState.GetMoves();
             
             if (rnd.NextDouble() <= 0.00007) //epsilon greedy
             {
@@ -124,7 +126,7 @@ namespace MCTS2016.Puzzles.SameGame
             {
                 moves = gameState.GetMoves();
             }
-            IGameMove selectedMove = moves[rnd.Next(moves.Count)];
+            IPuzzleMove selectedMove = moves[rnd.Next(moves.Count)];
             return selectedMove;
         }
     }

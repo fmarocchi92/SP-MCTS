@@ -35,10 +35,16 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Common\Abstract\IPuzzleMove.cs" />
+    <Compile Include="Common\Abstract\IPuzzleState.cs" />
     <Compile Include="Common\MCTSEvalStats.cs" />
-    <Compile Include="MCTS\SP_MCTSAlgorithm.cs" />
-    <Compile Include="MCTS\SP_UCT\SP_UCTTreeNode.cs" />
-    <Compile Include="MCTS\SP_UCT\SP_UCTTreeNodeCreator.cs" />
+    <Compile Include="SP_MCTS\ISPSimulationStrategy.cs" />
+    <Compile Include="SP_MCTS\ISPTreeNode.cs" />
+    <Compile Include="SP_MCTS\ISPTreeNodeCreator.cs" />
+    <Compile Include="SP_MCTS\ISP_MCTSSimulationStrategy.cs" />
+    <Compile Include="SP_MCTS\SP_MCTSAlgorithm.cs" />
+    <Compile Include="SP_MCTS\SP_UCT\SP_UCTTreeNode.cs" />
+    <Compile Include="SP_MCTS\SP_UCT\SP_UCTTreeNodeCreator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Common\MersenneTwister\MersenneTwister.cs" />
     <Compile Include="Common\Abstract\IGameMove.cs" />

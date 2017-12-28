@@ -1,6 +1,8 @@
 ﻿using Common;
 using Common.Abstract;
+using MCTS2016.Common.Abstract;
 using MCTS2016.Puzzles.SameGame;
+using MCTS2016.SP_MCTS;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +18,7 @@ namespace MCTS2016
         private static Object taskLock = new object();
         private static int[] taskTaken;
         private static int[] scores;
-        private static List<IGameMove>[] bestMoves;
+        private static List<IPuzzleMove>[] bestMoves;
         private static int currentTaskIndex=0;
         private static uint threadIndex;
         private static int restarts;
@@ -121,7 +123,7 @@ namespace MCTS2016
             taskTaken = new int[levels.Length];
             scores = new int[levels.Length];
             SinglePlayerMCTSMain.restarts = restarts;
-            bestMoves = new List<IGameMove>[levels.Length];
+            bestMoves = new List<IPuzzleMove>[levels.Length];
             for (int i = 0; i < scores.Length; i++)
             {
                 scores[i] = int.MinValue;
@@ -157,13 +159,13 @@ namespace MCTS2016
             int currentLevelIndex = GetTaskIndex(threadIndex);
             while (currentLevelIndex >= 0)
             {
-                ISimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(levels[currentLevelIndex],rnd);
+                ISPSimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(levels[currentLevelIndex],rnd);
                 //Console.Write("\rRun " + (restartN + 1) + " of " + restarts + "  ");
                 SamegameGameState s = new SamegameGameState(levels[currentLevelIndex], rnd, simulationStrategy);
-                IGameMove move;
-                ISimulationStrategy player = new SamegameMCTSStrategy(rnd,iterations, 600, null, const_C, const_D);
+                IPuzzleMove move;
+                ISPSimulationStrategy player = new SamegameMCTSStrategy(rnd,iterations, 600, null, const_C, const_D);
                 string moveString = string.Empty;
-                List<IGameMove> moveList = new List<IGameMove>();
+                List<IPuzzleMove> moveList = new List<IPuzzleMove>();
                 while (!s.isTerminal())
                 {
                     move = player.selectMove(s);
@@ -172,9 +174,9 @@ namespace MCTS2016
                 }
                 lock (taskLock)
                 {
-                    if (s.GetScore(0) > scores[currentLevelIndex])
+                    if (s.GetScore() > scores[currentLevelIndex])
                     {
-                        scores[currentLevelIndex] = s.GetScore(0);
+                        scores[currentLevelIndex] = s.GetScore();
                         bestMoves[currentLevelIndex] = moveList;
                         Log("Completed run " + taskTaken[currentLevelIndex] + "/" + restarts + " of level " + (currentLevelIndex + 1) + ". New top score found: " + scores[currentLevelIndex]);
                         PrintMoveList(currentLevelIndex, moveList);
@@ -182,7 +184,7 @@ namespace MCTS2016
                     }
                     else
                     {
-                        Log("Completed run " + taskTaken[currentLevelIndex] + "/" + restarts + " of level " + (currentLevelIndex + 1) + " with score: " + s.GetScore(0));
+                        Log("Completed run " + taskTaken[currentLevelIndex] + "/" + restarts + " of level " + (currentLevelIndex + 1) + " with score: " + s.GetScore());
                     }
                 }
                 currentLevelIndex = GetTaskIndex(threadIndex);
@@ -228,7 +230,7 @@ namespace MCTS2016
             }
         }
 
-        public static void PrintMoveList(int level, List<IGameMove> moves)
+        public static void PrintMoveList(int level, List<IPuzzleMove> moves)
         {
             for(int i = 0; i < moves.Count; i++)
             {

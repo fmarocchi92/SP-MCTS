@@ -3,27 +3,28 @@ using System.Collections.Generic;
 using Common.Abstract;
 using MCTS.Standard.Utils;
 using Common;
+using MCTS2016.SP_MCTS;
+using MCTS2016.Common.Abstract;
 
-namespace MCTS2016.MCTS.SP_UCT
+namespace MCTS2016.SP_MCTS.SP_UCT
 {
-    public class SP_UCTTreeNode : ITreeNode
+    public class SP_UCTTreeNode : ISPTreeNode
     {
         private static Random random = new Random();
         private SP_UCTTreeNode parent;
-        private IGameMove move;
+        private IPuzzleMove move;
         protected List<SP_UCTTreeNode> childNodes;
-        protected List<IGameMove> untriedMoves;
+        protected List<IPuzzleMove> untriedMoves;
         private double wins;
         private double score;
         protected int visits;
-        private int playerWhoJustMoved;
         protected double const_C;
         protected double const_D;
         private double squaredReward;
         private double topScore;
         private MersenneTwister rnd;
 
-        public SP_UCTTreeNode(IGameMove move, SP_UCTTreeNode parent, IGameState state, MersenneTwister rng, double const_C = 1, double const_D = 20000, bool generateUntriedMoves = true)
+        public SP_UCTTreeNode(IPuzzleMove move, SP_UCTTreeNode parent, IPuzzleState state, MersenneTwister rng, double const_C = 1, double const_D = 20000, bool generateUntriedMoves = true)
         {
             this.move = move;
             this.parent = parent;
@@ -35,29 +36,23 @@ namespace MCTS2016.MCTS.SP_UCT
             visits = 0;
             squaredReward = 0;
             topScore = double.MinValue;
-            playerWhoJustMoved = state.playerJustMoved;
             if (generateUntriedMoves)
             {
                 untriedMoves = state.GetMoves();
             }
         }
 
-        public int PlayerWhoJustMoved
-        {
-            get { return playerWhoJustMoved; }
-        }
-
-        public ITreeNode Parent
+        public ISPTreeNode Parent
         {
             get { return parent; }
         }
 
-        public IGameMove Move
+        public IPuzzleMove Move
         {
             get { return move; }
         }
 
-        public ITreeNode SelectChild()
+        public ISPTreeNode SelectChild()
         {
             childNodes.Sort((x, y) => -x.SP_UCTValue().CompareTo(y.SP_UCTValue()));
             return childNodes[0];
@@ -69,7 +64,7 @@ namespace MCTS2016.MCTS.SP_UCT
                 + Math.Sqrt((squaredReward - visits * Math.Pow(wins / visits, 2) + const_D) / visits);
         }
 
-        public virtual ITreeNode AddChild(IGameMove move, IGameState state)
+        public virtual ISPTreeNode AddChild(IPuzzleMove move, IPuzzleState state)
         {
             SP_UCTTreeNode n = new SP_UCTTreeNode(move, this, state, rnd, const_C,const_D);
             untriedMoves.Remove(move);
@@ -86,7 +81,7 @@ namespace MCTS2016.MCTS.SP_UCT
             topScore = Math.Max(topScore, result);
         }
 
-        public IGameMove SelectUntriedMove()
+        public IPuzzleMove SelectUntriedMove()
         {
             return untriedMoves[rnd.Next(untriedMoves.Count)];
         }
@@ -95,10 +90,10 @@ namespace MCTS2016.MCTS.SP_UCT
         /// Returns the move with the highest final topScore
         /// </summary>
         /// <returns></returns>
-        public IGameMove GetBestMove()
+        public IPuzzleMove GetBestMove()
         {
             childNodes.Sort((x, y) => -x.topScore.CompareTo(y.topScore));
-            return childNodes.Count > 0 ? childNodes[0].move : (IGameMove)(0 - 1);
+            return childNodes.Count > 0 ? childNodes[0].move : (IPuzzleMove)(0 - 1);
         }
 
         public bool HasMovesToTry()

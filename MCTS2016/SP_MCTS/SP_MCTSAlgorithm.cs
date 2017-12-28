@@ -6,30 +6,32 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MCTS2016.SP_MCTS.SP_UCT;
+using MCTS2016.Common.Abstract;
 
-namespace MCTS2016.MCTS
+namespace MCTS2016.SP_MCTS
 {
     class SP_MCTSAlgorithm
     {
-        private ITreeNodeCreator treeCreator;
+        private ISPTreeNodeCreator treeCreator;
         private bool search = true;
 
-        private List<IGameMove> bestRollout;
+        private List<IPuzzleMove> bestRollout;
         private double topScore = double.MinValue;
         private bool updateTopScore;
 
-        public SP_MCTSAlgorithm(ITreeNodeCreator treeCreator)
+        public SP_MCTSAlgorithm(ISPTreeNodeCreator treeCreator)
         {
             this.treeCreator = treeCreator;
         }
 
-        public List<IGameMove> Solve(IGameState rootState, int iterations, double maxTimeInMinutes = 5)
+        public List<IPuzzleMove> Solve(IPuzzleState rootState, int iterations, double maxTimeInMinutes = 5)
         {
-            IGameMove bestMove = Search(rootState, iterations, maxTimeInMinutes);
+            IPuzzleMove bestMove = Search(rootState, iterations, maxTimeInMinutes);
             return bestRollout;
         }
 
-        public IGameMove Search(IGameState rootState, int iterations, double maxTimeInMinutes = 5)
+        public IPuzzleMove Search(IPuzzleState rootState, int iterations, double maxTimeInMinutes = 5)
         {
 
             int nodeCount = 0; 
@@ -39,7 +41,7 @@ namespace MCTS2016.MCTS
                 search = true;
             }
 
-            ITreeNode rootNode = treeCreator.GenRootNode(rootState);
+            ISPTreeNode rootNode = treeCreator.GenRootNode(rootState);
 
             long beforeMemory = GC.GetTotalMemory(false);
             long afterMemory = GC.GetTotalMemory(false);
@@ -52,8 +54,8 @@ namespace MCTS2016.MCTS
                 {
                     break;
                 }
-                ITreeNode node = rootNode;
-                IGameState state = rootState.Clone();
+                ISPTreeNode node = rootNode;
+                IPuzzleState state = rootState.Clone();
 
                 // Select
                 while (!node.HasMovesToTry() && node.HasChildren())
@@ -65,7 +67,7 @@ namespace MCTS2016.MCTS
                 // Expand
                 if (node.HasMovesToTry())
                 {
-                    IGameMove move = node.SelectUntriedMove();
+                    IPuzzleMove move = node.SelectUntriedMove();
                     if (move != -1)
                     {
                         state.DoMove(move);
@@ -78,7 +80,7 @@ namespace MCTS2016.MCTS
                     nodeCount++;
                 }
 
-                List<IGameMove> currentRollout = new List<IGameMove>();
+                List<IPuzzleMove> currentRollout = new List<IPuzzleMove>();
                 // Rollout
                 while (!state.isTerminal())
                 {
@@ -96,9 +98,9 @@ namespace MCTS2016.MCTS
                 }
 
                 //Keep topScore and update bestRollout
-                if (state.GetScore(node.PlayerWhoJustMoved) > topScore)
+                if (state.GetScore() > topScore)
                 {
-                    topScore = state.GetScore(node.PlayerWhoJustMoved);
+                    topScore = state.GetScore();
                     bestRollout = currentRollout ;
                     bestRollout.Reverse();
                     updateTopScore = true;
@@ -112,7 +114,7 @@ namespace MCTS2016.MCTS
                         //Complete bestRollout with moves from nodes already in the tree
                         bestRollout.Add(node.Move);
                     }
-                    node.Update(state.GetResult(node.PlayerWhoJustMoved));
+                    node.Update(state.GetResult());
                     node = node.Parent;
                     
                 }
@@ -153,10 +155,10 @@ namespace MCTS2016.MCTS
             //#endif
             //Debug.WriteLine("Iterations: " + i);
             //Debug.WriteLine("Node Count: " + nodeCount);
-            IGameMove bestMove;
+            IPuzzleMove bestMove;
             if (bestRollout != null)
             {
-                bestMove = bestRollout.First<IGameMove>();
+                bestMove = bestRollout.First<IPuzzleMove>();
                 bestRollout.RemoveAt(0);
             }
             else
@@ -169,7 +171,7 @@ namespace MCTS2016.MCTS
             return bestMove;
         }
 
-        public ITreeNodeCreator TreeCreator
+        public ISPTreeNodeCreator TreeCreator
         {
             get { return treeCreator; }
         }

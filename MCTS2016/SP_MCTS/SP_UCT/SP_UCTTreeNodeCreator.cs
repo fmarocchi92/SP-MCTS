@@ -1,15 +1,17 @@
 ﻿using Common;
 using Common.Abstract;
 using MCTS.Standard.Utils;
+using MCTS2016.Common.Abstract;
+using MCTS2016.SP_MCTS;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MCTS2016.MCTS.SP_UCT
+namespace MCTS2016.SP_MCTS.SP_UCT
 {
-    public class SP_UCTTreeNodeCreator : ITreeNodeCreator
+    public class SP_UCTTreeNodeCreator : ISPTreeNodeCreator
     {
         private double const_C;
         private double const_D;
@@ -21,7 +23,7 @@ namespace MCTS2016.MCTS.SP_UCT
             this.const_D = const_D;
         }
 
-        public ITreeNode GenRootNode(IGameState rootState)
+        public ISPTreeNode GenRootNode(IPuzzleState rootState)
         {
             return new SP_UCTTreeNode(null, null, rootState, rnd,const_C,const_D);
         }
