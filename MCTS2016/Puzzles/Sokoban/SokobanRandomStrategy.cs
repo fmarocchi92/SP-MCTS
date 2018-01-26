@@ -1,4 +1,6 @@
 ﻿using Common.Abstract;
+using MCTS2016.Common.Abstract;
+using MCTS2016.SP_MCTS;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MCTS2016.Puzzles.Sokoban
 {
-    class SokobanRandomStrategy : ISimulationStrategy
+    class SokobanRandomStrategy : ISPSimulationStrategy
     {
         public string getFriendlyName()
         {
@@ -19,7 +21,7 @@ namespace MCTS2016.Puzzles.Sokoban
             return GetType().Name;
         }
 
-        public IGameMove selectMove(IGameState gameState)
+        public IPuzzleMove selectMove(IPuzzleState gameState)
         {
             return gameState.GetRandomMove();
         }

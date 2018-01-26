@@ -1,4 +1,5 @@
 ﻿using Common.Abstract;
+using MCTS2016.Common.Abstract;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace MCTS2016.Puzzles.Sokoban
 {
-    class SokobanGameMove : IGameMove
+    class SokobanGameMove : IPuzzleMove
     {
         private string moveString;
 
@@ -76,10 +77,24 @@ namespace MCTS2016.Puzzles.Sokoban
             this.move = move;
         }
 
+        public override bool Equals(object obj)
+        {
+            var move = obj as SokobanGameMove;
+            return move != null &&
+                   moveString == move.moveString;
+        }
+
+        public override int GetHashCode()
+        {
+            return -72123235 + EqualityComparer<string>.Default.GetHashCode(moveString);
+        }
+
         public override string ToString()
         {
             return moveString;
         }
+
+
     }
 
 

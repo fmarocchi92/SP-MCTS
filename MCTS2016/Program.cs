@@ -9,6 +9,7 @@ using BoardGames;
 using MCTS2016.Puzzles.Sokoban;
 using MCTS2016.Puzzles.SameGame;
 using System.Collections.Generic;
+using MCTS2016.Common.Abstract;
 
 #if TRUESKILL
 using Moserware.Skills;
@@ -70,7 +71,7 @@ class MainClass
         Debug.WriteLine(sasquatch1);
         SokobanGameState s = new SokobanGameState(sasquatch1);
         Debug.WriteLine(s.PrettyPrint());
-        IGameMove move;
+        IPuzzleMove move;
         while (!s.EndState())
         {
             move = s.GetRandomMove();

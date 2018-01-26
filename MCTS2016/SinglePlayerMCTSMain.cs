@@ -2,12 +2,15 @@
 using Common.Abstract;
 using MCTS2016.Common.Abstract;
 using MCTS2016.Puzzles.SameGame;
+using MCTS2016.Puzzles.Sokoban;
 using MCTS2016.SP_MCTS;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -88,7 +91,9 @@ namespace MCTS2016
 
             if (game.Equals("sokoban"))
             {
-
+                //ManualSokoban();
+                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed);
+                //MultiThreadSokobanTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
             }
             else if (game.Equals("samegame"))
             {
@@ -112,9 +117,156 @@ namespace MCTS2016
             }
         }
 
-        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath)
+        private static void MultiThreadSokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, int threadNumber, uint seed)
         {
+            int threadCount = Math.Min(Environment.ProcessorCount, threadNumber);
+            Thread[] threads = new Thread[threadCount];
+            for (int i = 0; i < threadCount; i++)
+            {
+                threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed));
+                threads[i].Start();
+            }
+            for (int i = 0; i < threadCount; i++)
+            {
+                threads[i].Join();
+            }
+        }
 
+        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed)
+        {
+            string[] levels = ReadSokobanLevels(levelPath);
+            
+            //string level = "######\n#    #\n#@$ .#\n# *  #\n######";
+
+            //string level = "   ###\n  ## # ####\n ##  ###  #\n## $      #\n#   @$ #  #\n### $###  #\n  #  #..  #\n ## ##.# ##\n #      ##\n #     ##\n #######";
+            //string level = "   ####\n####  ##\n#   $  #\n#  *** #\n#  . . ##\n## * *  #\n ##***  #\n  # $ ###\n  # @ #\n  #####";
+            uint threadIndex = GetThreadIndex();
+            //string level = " #####\n #   ####\n #   #  #\n ##    .#\n### ###.#\n# $ # #.#\n# $$# ###\n#@  #\n#####";
+            string level = "####\n# .#\n#  ###\n#*@  #\n#  $ #\n#  ###\n####";
+            
+            RNG.Seed(seed+threadIndex);
+            MersenneTwister rng = new MersenneTwister(seed+threadIndex);
+            ISPSimulationStrategy simulationStrategy = new SokobanRandomStrategy();
+            IPuzzleState[] states = new IPuzzleState[levels.Length];
+            SokobanMCTSStrategy player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D);
+            for (int i = 0; i < states.Length; i++)
+            {
+                states[i] = new SokobanGameState(levels[i], simulationStrategy);
+                Debug.WriteLine(states[i].PrettyPrint());
+
+                List<IPuzzleMove> moveList = new List<IPuzzleMove>();
+                player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D);
+                Log("Level"+(i+1)+":\n" + states[i].PrettyPrint());
+
+                string moves = "";
+
+                moveList = player.GetSolution(states[i]);
+                foreach (IPuzzleMove m in moveList)
+                {
+                    //Log("Move: " + m);
+                    moves += m;
+
+                    states[i].DoMove(m);
+                    //Log("\n" + states[i].PrettyPrint());
+                    //Log("IsTerminal: " + states[i].isTerminal());
+                }
+                Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moveList.Count());
+                Log("Moves: " + moves);
+                Log("Result:\n" + states[i].PrettyPrint());
+
+                //IPuzzleMove move;
+                //while (!states[i].isTerminal())
+                //{
+                //    move = player.selectMove(states[i]);
+                //    states[i].DoMove(move);
+                //    //Log("Move: " + move);
+                //    moves += move;
+                //    //Log("\n" + states[i].PrettyPrint());
+                //    //Log("IsTerminal: " + states[i].isTerminal());
+                //}
+                //Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count());
+                //Log("Moves: " + moves);
+                //Log("Result:\n" + states[i].PrettyPrint());
+                Log("Final score: " + states[i].GetScore());
+            }
+        }
+
+        private static void ManualSokoban()
+        {
+            string level = " #####\n #   ####\n #   #  #\n ##    .#\n### ###.#\n# $ # #.#\n# $$# ###\n#@  #\n#####";
+            //string level = "####\n# .#\n#  ###\n#*@  #\n#  $ #\n#  ###\n####";
+            Log("Level:\n" + level);
+            MersenneTwister rng = new MersenneTwister(1+threadIndex);
+            ISPSimulationStrategy simulationStrategy = new SokobanRandomStrategy();
+            SokobanGameState s = new SokobanGameState(level, simulationStrategy);
+            SokobanGameState backupState = (SokobanGameState) s.Clone();
+            bool quit = false;
+            IPuzzleMove move=null;
+            Console.WriteLine(s.PrettyPrint());
+            while (!quit)
+            {
+                ConsoleKeyInfo input = Console.ReadKey();
+                List<IPuzzleMove> moves = s.GetMoves();
+                switch (input.Key)
+                {
+                    case ConsoleKey.UpArrow:
+                        if(moves.Contains(new SokobanGameMove("u"))){
+                            move = new SokobanGameMove("u");
+                        }
+                        else
+                        {
+                            move = new SokobanGameMove("U");
+                        }
+                        break;
+                    case ConsoleKey.DownArrow:
+                        if (moves.Contains(new SokobanGameMove("d")))
+                        {
+                            move = new SokobanGameMove("d");
+                        }
+                        else
+                        {
+                            move = new SokobanGameMove("D");
+                        }
+                        break;
+                    case ConsoleKey.LeftArrow:
+                        if (moves.Contains(new SokobanGameMove("l")))
+                        {
+                            move = new SokobanGameMove("l");
+                        }
+                        else
+                        {
+                            move = new SokobanGameMove("L");
+                        }
+                        break;
+                    case ConsoleKey.RightArrow:
+                        if (moves.Contains(new SokobanGameMove("r")))
+                        {
+                            move = new SokobanGameMove("r");
+                        }
+                        else
+                        {
+                            move = new SokobanGameMove("R");
+                        }
+                        break;
+                    case ConsoleKey.R:
+                        s = (SokobanGameState) backupState.Clone();
+                        move = null;
+                        break;
+                    case ConsoleKey.Q:
+                        move = null;
+                        quit = true;
+                        break;
+                }
+                if (move != null)
+                {
+                    Console.WriteLine("Move: " + move);
+                    s.DoMove(move);
+                }
+                    Console.WriteLine(s.PrettyPrint());
+                    Console.WriteLine("Score: " + s.GetScore() + "  |  isTerminal: "+s.isTerminal());
+                
+                
+            }
         }
 
         private static void MultiThreadSamegameTest(double const_C, double const_D, int iterations, int restarts, string levelPath, int threadNumber, uint seed)
@@ -201,7 +353,17 @@ namespace MCTS2016
             return levels;
         }
 
-        private static int GetTaskIndex( uint threadIndex)
+        private static string[] ReadSokobanLevels(string levelPath)
+        {
+            StreamReader reader = File.OpenText(levelPath);
+            string fullString = reader.ReadToEnd();
+            fullString = Regex.Replace(fullString, @"[\d]", string.Empty);
+            reader.Close();
+            string[] levels = fullString.Split(new string[] { ";" }, StringSplitOptions.RemoveEmptyEntries);
+            return levels;
+        }
+
+            private static int GetTaskIndex( uint threadIndex)
         {
             lock (taskLock)
             {
