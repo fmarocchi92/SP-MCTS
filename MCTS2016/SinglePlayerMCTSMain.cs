@@ -1,5 +1,6 @@
 ﻿using Common;
 using Common.Abstract;
+using GraphAlgorithms;
 using MCTS2016.Common.Abstract;
 using MCTS2016.Puzzles.SameGame;
 using MCTS2016.Puzzles.Sokoban;
@@ -83,16 +84,23 @@ namespace MCTS2016
                 PrintInputError("seed requires an unsigned integer value");
                 return;
             }
+
+            bool abstractSokoban;
+            if (!bool.TryParse(args[7], out abstractSokoban))
+            {
+                PrintInputError("abstract sokoban requires a boolean value");
+                return;
+            }
             //RNG.Seed(seed);
-            string logPath = args[7];
+            string logPath = args[8];
             textWriter = File.AppendText(logPath);
-            string levelPath = args[8];
-            Log("BEGIN TASK: " + game + " - const_C: " + const_C + " - const_D: " + const_D + " - iterations per move: " + iterations + " - restarts: " + restarts + " - max threads: "+maxThread);
+            string levelPath = args[9];
+            Log("BEGIN TASK: " + game + " - const_C: " + const_C + " - const_D: " + const_D + " - iterations per move: " + iterations + " - restarts: " + restarts + " - max threads: "+maxThread+" - abstract: "+abstractSokoban);
 
             if (game.Equals("sokoban"))
             {
                 //ManualSokoban();
-                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed);
+                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban);
                 //MultiThreadSokobanTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
             }
             else if (game.Equals("samegame"))
@@ -123,7 +131,7 @@ namespace MCTS2016
             Thread[] threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed));
+                threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, true));
                 threads[i].Start();
             }
             for (int i = 0; i < threadCount; i++)
@@ -132,26 +140,60 @@ namespace MCTS2016
             }
         }
 
-        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed)
+        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban)
         {
-            string[] levels = ReadSokobanLevels(levelPath);
-            
-            //string level = "######\n#    #\n#@$ .#\n# *  #\n######";
 
-            //string level = "   ###\n  ## # ####\n ##  ###  #\n## $      #\n#   @$ #  #\n### $###  #\n  #  #..  #\n ## ##.# ##\n #      ##\n #     ##\n #######";
-            //string level = "   ####\n####  ##\n#   $  #\n#  *** #\n#  . . ##\n## * *  #\n ##***  #\n  # $ ###\n  # @ #\n  #####";
+            ///////////////////////////////////////////
+            //int[][] costs = new int[4][];
+            //costs[0] = new int[] {80,40,50,86 };
+            //costs[1] = new int[] {40,70,20,25 };
+            //costs[2] = new int[] { 30, 10, 20, 30 };
+            //costs[3] = new int[] { 35, 20, 25, 30 };
+            //int[][] costs2 = new int[4][];
+            //costs2[0] = new int[] { 80, 40, 50, 86 };
+            //costs2[1] = new int[] { 40, 70, 20, 25 };
+            //costs2[2] = new int[] { 30, 10, 20, 30 };
+            //costs2[3] = new int[] { 35, 20, 25, 30 };
+            int[,] costs = new int[3, 3] { { 80, 40, 500 }, { 40, 70, 20 }, { 30, 15, 20 } };
+            //costs[0] = new int[] { 80, 40, 500 };
+            //costs[1] = new int[] { 40, 70, 20};
+            //costs[2] = new int[] { 30, 15, 20};
+            int[][] costs2 = new int[3][];
+            //costs2[0] = (int[])costs[0].Clone();
+            //costs2[1] = (int[])costs[1].Clone();
+            //costs2[2] = (int[])costs[2].Clone();
+            int[] pairings = new HungarianAlgorithm(costs).Run();
+            int totalcost = 0;
+            for(int i = 0; i < pairings.Length; i++)
+            {
+                totalcost += costs[i,pairings[i]];
+            }
+
+            ///////////////////////////////////////////
+
+
+            string[] levels = ReadSokobanLevels(levelPath);
             uint threadIndex = GetThreadIndex();
-            //string level = " #####\n #   ####\n #   #  #\n ##    .#\n### ###.#\n# $ # #.#\n# $$# ###\n#@  #\n#####";
-            string level = "####\n# .#\n#  ###\n#*@  #\n#  $ #\n#  ###\n####";
             
             RNG.Seed(seed+threadIndex);
             MersenneTwister rng = new MersenneTwister(seed+threadIndex);
-            ISPSimulationStrategy simulationStrategy = new SokobanRandomStrategy();
+            ISPSimulationStrategy simulationStrategy;
+            if (abstractSokoban)
+            {
+                simulationStrategy = new SokobanInertiaStrategy(rng, 0.6);
+            }
+            else
+            {
+                simulationStrategy = new SokobanRandomStrategy();
+            }
+            
             IPuzzleState[] states = new IPuzzleState[levels.Length];
             SokobanMCTSStrategy player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D);
+            int solvedLevels = 0;
             for (int i = 0; i < states.Length; i++)
             {
-                states[i] = new SokobanGameState(levels[i], simulationStrategy);
+                
+                states[i] = new SokobanGameState(levels[i], simulationStrategy, abstractSokoban);
                 Debug.WriteLine(states[i].PrettyPrint());
 
                 List<IPuzzleMove> moveList = new List<IPuzzleMove>();
@@ -163,16 +205,34 @@ namespace MCTS2016
                 moveList = player.GetSolution(states[i]);
                 foreach (IPuzzleMove m in moveList)
                 {
-                    //Log("Move: " + m);
-                    moves += m;
+                    if (abstractSokoban)
+                    {
+                        //Log("Move: " + m);
+                        SokobanPushMove push = (SokobanPushMove)m;
+                        foreach (IPuzzleMove basicMove in push.MoveList)
+                        {
+                            moves += basicMove;
+                        }
+                        moves += push.PushMove;
 
+                    }
+                    else
+                    {
+                        moves += m;
+                    }
                     states[i].DoMove(m);
                     //Log("\n" + states[i].PrettyPrint());
                     //Log("IsTerminal: " + states[i].isTerminal());
                 }
-                Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moveList.Count());
+                if (states[i].EndState())
+                {
+                    solvedLevels++;
+                }
+                Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count());
                 Log("Moves: " + moves);
-                Log("Result:\n" + states[i].PrettyPrint());
+                Log("Solved "+solvedLevels+"/"+(i+1));
+                Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
+                //Log("Result:\n" + states[i].PrettyPrint());
 
                 //IPuzzleMove move;
                 //while (!states[i].isTerminal())

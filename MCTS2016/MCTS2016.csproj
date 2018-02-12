@@ -35,11 +35,14 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BFS\BFSNode.cs" />
     <Compile Include="Common\Abstract\IPuzzleMove.cs" />
     <Compile Include="Common\Abstract\IPuzzleState.cs" />
     <Compile Include="Common\MCTSEvalStats.cs" />
+    <Compile Include="Puzzles\Sokoban\HungarianAlgorithm.cs" />
+    <Compile Include="Puzzles\Sokoban\SokobanInertiaStrategy.cs" />
     <Compile Include="Puzzles\Sokoban\SokobanMCTSStrategy.cs" />
-    <Compile Include="Puzzles\Sokoban\SokobanPushFirstStrategy.cs" />
+    <Compile Include="Puzzles\Sokoban\SokobanPushMove.cs" />
     <Compile Include="SP_MCTS\ISPSimulationStrategy.cs" />
     <Compile Include="SP_MCTS\ISPTreeNode.cs" />
     <Compile Include="SP_MCTS\ISPTreeNodeCreator.cs" />
@@ -138,5 +141,7 @@
     <Compile Include="TrueSkill\Layers\TeamPerformancesToTeamPerformanceDifferencesLayer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup />
+  <ItemGroup>
+    <Compile Include="Puzzles\Sokoban\SokobanUtilities.cs" />
+  </ItemGroup>
 </Project>

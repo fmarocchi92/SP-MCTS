@@ -21,6 +21,7 @@ namespace MCTS2016.SP_MCTS
         private bool updateTopScore;
         private bool checkForRepeatingStates = true;
 
+
         public SP_MCTSAlgorithm(ISPTreeNodeCreator treeCreator)
         {
             this.treeCreator = treeCreator;
@@ -36,6 +37,9 @@ namespace MCTS2016.SP_MCTS
 
         public IPuzzleMove Search(IPuzzleState rootState, int iterations, double maxTimeInMinutes = 5)
         {
+            HashSet<IPuzzleState> visitedStatesInTree = new HashSet<IPuzzleState>() {rootState};
+
+
             int nodeCount = 0; 
             if (!search)
             {
@@ -93,8 +97,8 @@ namespace MCTS2016.SP_MCTS
                 }
 
                 List<IPuzzleMove> currentRollout = new List<IPuzzleMove>();
-                Dictionary<IPuzzleState, HashSet<IPuzzleMove>> movesInRollout = new Dictionary<IPuzzleState, HashSet<IPuzzleMove>>();
-                //HashSet<IPuzzleState> statesVisitedInRollout = new HashSet<IPuzzleState>() { state };
+
+                HashSet<IPuzzleState> visitedStatesInRollout = new HashSet<IPuzzleState>() { state };
                 // Rollout
                 int rolloutMovesCount = 0;
                 while (!state.isTerminal() && rolloutMovesCount<1000)
@@ -102,42 +106,36 @@ namespace MCTS2016.SP_MCTS
                     //IPuzzleState clonedState = state.Clone();
                     rolloutMovesCount++;
                     var move = state.GetSimulationMove();
-                    ////// avoid repeating moves if possible
-                    //List<IPuzzleMove> possibleMoves = state.GetMoves();
-                    //HashSet<IPuzzleMove> triedMoves;
-                    //bool newMove = false;
-                    //if (!movesInRollout.TryGetValue(state, out triedMoves))
-                    //{
-                    //    movesInRollout.Add(state, new HashSet<IPuzzleMove>() { move });
-                    //    newMove = true;
-                    //}
-                    //else if(possibleMoves.Count() == triedMoves.Count())
-                    //{
-                    //    newMove = true;
-                    //}
-                    //while(!newMove)
-                    //{
-                    //    int count = 0;
-                    //    while (triedMoves.Contains(move) && !newMove)
-                    //    {
-                    //        move = state.GetSimulationMove();
-                    //        count++;
-                    //    }
-                    //    newMove = true;
-                    //    if (count != 8)
-                    //    {
-                    //        //Debug.WriteLine("Changed move");
-                    //    }
-                    //    triedMoves.Add(move);
-                    //}
-                    ///////
+                    backupState = state.Clone();
+                    
                     if (move != -1)
                     {
                         //Keep rollout moves
-                        currentRollout.Add(move);
+                        
                         //Debug.WriteLine(move);
                         state.DoMove(move);
-                        //Debug.WriteLine(state.PrettyPrint());
+                        if (visitedStatesInRollout.Contains(state))
+                        {
+                            state = backupState.Clone();
+                            List<IPuzzleMove> availableMoves = state.GetMoves();
+                            int triedMoves = 0;
+                            for (triedMoves = 0; triedMoves < availableMoves.Count() && visitedStatesInRollout.Contains(state); triedMoves++)
+                            {
+                                state = backupState.Clone();
+                                state.DoMove(availableMoves[triedMoves]);
+                            }
+                            if(triedMoves < availableMoves.Count())
+                            {
+                                currentRollout.Add(move);
+                                visitedStatesInRollout.Add(state.Clone());
+                            }
+                            else
+                            {
+                                //Console.WriteLine("No untried move left in current rollout");
+                                break;
+                            }
+                        }
+                        currentRollout.Add(move);
                         //Debug.WriteLine(state.PrettyPrint());
                     }
                     else
@@ -149,21 +147,24 @@ namespace MCTS2016.SP_MCTS
                 {
                     Console.WriteLine("Rollout terminated after 1000 steps");
                 }
+                //Debug.WriteLine(state);
                 //Keep topScore and update bestRollout
-                if (state.GetResult() > topScore || state.GetResult() == topScore && currentRollout.Count()+currentBranchDepth < bestRollout.Count())
+                double result = state.GetResult();
+                if(result==1 && !state.EndState())
+                {
+                    Debug.WriteLine(state.PrettyPrint());
+                }
+                if (result > topScore || result == topScore && currentRollout.Count()+currentBranchDepth < bestRollout.Count())
                 {
                     //if(bestRollout!=null) Console.WriteLine("bestRollout:" + bestRollout.Count());
                     //Console.WriteLine("Total Depth: "+(currentRollout.Count() + currentBranchDepth) +" rollout:"+currentRollout.Count() + " branch:"+currentBranchDepth);
-                    topScore = state.GetResult();
+                    topScore = result;
                     bestRollout = currentRollout ;
                     bestRollout.Reverse();
                     updateTopScore = true;
                 }
 
-                if (state.EndState() && updateTopScore)
-                {
-                    Console.WriteLine("Solution found with score " + topScore + " found at rollout " + i + ".Solution length: " + (currentRollout.Count() + currentBranchDepth));
-                }
+                
 
                 // Backpropagate
                 while (node != null)
@@ -173,7 +174,7 @@ namespace MCTS2016.SP_MCTS
                         //Complete bestRollout with moves from nodes already in the tree
                         bestRollout.Add(node.Move);
                     }
-                    node.Update(state.GetResult());
+                    node.Update(result);
                     node = node.Parent;
                     
                 }
@@ -182,14 +183,24 @@ namespace MCTS2016.SP_MCTS
                 {
                     //Debug.WriteLine(bestRollout.Count);
                     bestRollout.Reverse();
-                    updateTopScore = false;
+                    //updateTopScore = false;
                     if (topScore > 0)
                     {
                         //Console.WriteLine("New top score " + topScore + " found at rollout " + i + ". Solution length: " + bestRollout.Count());
                     }
                 }
 
-                if (!search)
+                if (state.EndState() && updateTopScore)
+                {
+                    //Console.WriteLine("Solution found with score " + topScore + " found at rollout " + i + ".Solution length: " + (currentRollout.Count() + currentBranchDepth));
+                    break;//HACK delete this to continue search after finding a result;
+                }
+                if (updateTopScore)
+                {
+                    updateTopScore = false;
+                }
+
+                    if (!search)
                 {
                     search = true;
                     return null;
@@ -230,7 +241,7 @@ namespace MCTS2016.SP_MCTS
             }
             //Remove first move from rollout so that if the topScore is not beaten we can just take the next move
 
-            Console.WriteLine("Top score so far: " + topScore);
+            //Console.WriteLine("Top score so far: " + topScore);
             return bestMove;
         }
 

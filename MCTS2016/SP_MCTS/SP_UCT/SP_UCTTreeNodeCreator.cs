@@ -16,16 +16,18 @@ namespace MCTS2016.SP_MCTS.SP_UCT
         private double const_C;
         private double const_D;
         private MersenneTwister rnd;
-        public SP_UCTTreeNodeCreator(double constant, double const_D, MersenneTwister rng)
+        private bool graphMode;
+        public SP_UCTTreeNodeCreator(double constant, double const_D, MersenneTwister rng, bool graphMode = true)
         {
             rnd = rng;
             this.const_C = constant;
             this.const_D = const_D;
+            this.graphMode = graphMode;
         }
 
         public ISPTreeNode GenRootNode(IPuzzleState rootState)
         {
-            return new SP_UCTTreeNode(null, null, rootState, rnd,const_C,const_D);
+            return new SP_UCTTreeNode(null, null, rootState, rnd,const_C,const_D,true,graphMode,new HashSet<IPuzzleState>() { rootState });
         }
 
         public override string ToString()
