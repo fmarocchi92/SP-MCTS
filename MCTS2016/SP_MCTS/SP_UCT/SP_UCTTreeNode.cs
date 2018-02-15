@@ -67,25 +67,18 @@ namespace MCTS2016.SP_MCTS.SP_UCT
         }
 
         private double SP_UCTValue()
-        {            
-            return wins / visits + const_C * Math.Sqrt(2 * Math.Log(parent.visits) / visits) 
-                + Math.Sqrt((squaredReward - visits * Math.Pow(wins / visits, 2) + const_D) / visits);
+        {
+            return wins / visits + const_C * Math.Sqrt(2 * Math.Log(parent.visits) / visits);
+                //+ Math.Sqrt((squaredReward - visits * Math.Pow(wins / visits, 2) + const_D) / visits);
         }
 
         public virtual ISPTreeNode AddChild(IPuzzleMove move, IPuzzleState state)
         {
             untriedMoves.Remove(move);
-            if(graphMode && visitedStates.Contains(state))
-            {
-                return this;
-            }
-            else
-            {
-                SP_UCTTreeNode n = new SP_UCTTreeNode(move, this, state, rnd, const_C, const_D, true, graphMode, visitedStates);
-                childNodes.Add(n);
-                visitedStates.Add(state);
-                return n;
-            }            
+            SP_UCTTreeNode n = new SP_UCTTreeNode(move, this, state, rnd, const_C, const_D, true, graphMode, visitedStates);
+            childNodes.Add(n);
+            visitedStates.Add(state);
+            return n;
         }
 
         public void Update(double result)
@@ -155,6 +148,16 @@ namespace MCTS2016.SP_MCTS.SP_UCT
                 s += "| ";
             }
             return s;
+        }
+
+        public List<IPuzzleMove> GetUntriedMoves()
+        {
+            return untriedMoves;
+        }
+
+        public void RemoveUntriedMove(IPuzzleMove move)
+        {
+            untriedMoves.Remove(move);
         }
     }
 }

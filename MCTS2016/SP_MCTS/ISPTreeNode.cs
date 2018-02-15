@@ -15,6 +15,10 @@ namespace MCTS2016.SP_MCTS
 
         IPuzzleMove GetBestMove();
 
+        List<IPuzzleMove> GetUntriedMoves();
+
+        void RemoveUntriedMove(IPuzzleMove move);
+
         bool HasChildren();
 
         bool HasMovesToTry();

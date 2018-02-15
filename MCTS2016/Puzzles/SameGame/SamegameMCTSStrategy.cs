@@ -25,7 +25,7 @@ namespace MCTS2016.Puzzles.SameGame
         {
             if (mcts == null)
             {
-                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D, rng));
+                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D, rng),false);
             }
             this.mcts = mcts;
             this.iterations = iterations;

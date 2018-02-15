@@ -66,19 +66,7 @@ class MainClass
 		
     private static void SokobanTest()
     {
-        string sasquatch1 = "   ###\n  ## # ####\n ##  ###  #\n## $      #\n#   @$ #  #\n### $###  #\n  #  #..  #\n ## ##.# ##\n #      ##\n #     ##\n #######";
-        string level = "######\n#    #\n#@$ .#\n# *  #\n######";
-        Debug.WriteLine(sasquatch1);
-        SokobanGameState s = new SokobanGameState(sasquatch1);
-        Debug.WriteLine(s.PrettyPrint());
-        IPuzzleMove move;
-        while (!s.EndState())
-        {
-            move = s.GetRandomMove();
-            Debug.WriteLine(move);
-            s.DoMove(move);
-            Debug.WriteLine(s.PrettyPrint());
-        }
+        
     }
 
     private static void SamegameTest()

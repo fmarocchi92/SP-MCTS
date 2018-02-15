@@ -18,11 +18,11 @@ namespace MCTS2016.Puzzles.Sokoban
 
         public int iterations { get; set; }
 
-        public SokobanMCTSStrategy(MersenneTwister rng, int iterations = 1000, double maxTimeInMinutes = 5, SP_MCTSAlgorithm mcts = null, double const_C = 4.31, double const_D = 96.67)
+        public SokobanMCTSStrategy(MersenneTwister rng, int iterations = 1000, double maxTimeInMinutes = 5, SP_MCTSAlgorithm mcts = null, double const_C = 4.31, double const_D = 96.67, bool stopOnResult = false)
         {
             if (mcts == null)
             {
-                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D, rng));
+                mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D, rng), stopOnResult);
             }
             this.mcts = mcts;
             this.iterations = iterations;

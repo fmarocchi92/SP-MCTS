@@ -35,11 +35,16 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BFS\BFSNode.cs" />
+    <Compile Include="BFS\BFSNodePosition.cs" />
+    <Compile Include="BFS\BFSNodeState.cs" />
     <Compile Include="Common\Abstract\IPuzzleMove.cs" />
     <Compile Include="Common\Abstract\IPuzzleState.cs" />
     <Compile Include="Common\MCTSEvalStats.cs" />
+    <Compile Include="IDAStar\AStarNode.cs" />
+    <Compile Include="IDAStar\IDAStar.cs" />
+    <Compile Include="Puzzles\Sokoban\AbstractSokobanState.cs" />
     <Compile Include="Puzzles\Sokoban\HungarianAlgorithm.cs" />
+    <Compile Include="Puzzles\Sokoban\RewardType.cs" />
     <Compile Include="Puzzles\Sokoban\SokobanInertiaStrategy.cs" />
     <Compile Include="Puzzles\Sokoban\SokobanMCTSStrategy.cs" />
     <Compile Include="Puzzles\Sokoban\SokobanPushMove.cs" />
@@ -140,8 +145,6 @@
     <Compile Include="TrueSkill\Layers\TeamDifferencesComparisonLayer.cs" />
     <Compile Include="TrueSkill\Layers\TeamPerformancesToTeamPerformanceDifferencesLayer.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <ItemGroup>
-    <Compile Include="Puzzles\Sokoban\SokobanUtilities.cs" />
-  </ItemGroup>
 </Project>

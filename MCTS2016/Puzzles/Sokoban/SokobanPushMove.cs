@@ -29,7 +29,12 @@ namespace MCTS2016.Puzzles.Sokoban
 
         public override string ToString()
         {
-            return playerPosition+":"+ PushMove.ToString();
+            string s = "";
+            foreach(SokobanGameMove m in moveList)
+            {
+                s += m;
+            }
+            return playerPosition+":"+ s+PushMove.ToString();
         }
     }
 }

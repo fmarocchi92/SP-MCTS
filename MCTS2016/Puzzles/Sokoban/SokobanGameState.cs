@@ -19,8 +19,6 @@ namespace MCTS2016.Puzzles.Sokoban
         public int size { get; set; }//board width
         public int PlayerY { get => playerY;}
         public int PlayerX { get => playerX;}
-        public int NormalizedPlayerX { get => normalizedPlayerX; set => normalizedPlayerX = value; }
-        public int NormalizedPlayerY { get => normalizedPlayerY; set => normalizedPlayerY = value; }
 
         private bool stateChanged = false;
 
@@ -51,26 +49,23 @@ namespace MCTS2016.Puzzles.Sokoban
         //6 → player on goal
         private int[,] board;
 
+
         private int playerX;
         private int playerY;
-        private int normalizedPlayerX;
-        private int normalizedPlayerY;
 
         private int score;
         private bool win;
-        private bool abstractSokoban = true;
-        private bool abstractEquals = false;
         public HashSet<Position> simpleDeadlock;
-        //private HashSet<IPuzzleState> visitedStates=new HashSet<IPuzzleState>();
 
         private Dictionary<Position, int> distancesFromClosestGoal = new Dictionary<Position, int>();
         private Dictionary<PositionGoalPair, int> distancesFromAllGoals = new Dictionary<PositionGoalPair, int>();
         private List<Position> goals = new List<Position>();
+        private RewardType rewardType;
         private ISPSimulationStrategy simulationStrategy;
 
-        public SokobanGameState(String level, ISPSimulationStrategy simulationStrategy = null, bool abstractSokoban = true)
+        public SokobanGameState(String level, RewardType rewardType, ISPSimulationStrategy simulationStrategy = null)
         {
-            this.abstractSokoban = abstractSokoban;
+            this.rewardType = rewardType;
             String[] levelRows = level.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
             int maxWidth = 0;
             foreach (string row in levelRows)
@@ -109,7 +104,6 @@ namespace MCTS2016.Puzzles.Sokoban
             }
 
             simpleDeadlock = FindDeadlockPositions();
-            //visitedStates.Add(this.Clone());
         }
 
         private SokobanGameState()
@@ -131,13 +125,10 @@ namespace MCTS2016.Puzzles.Sokoban
                 simpleDeadlock = simpleDeadlock,
                 isDeadlock = isDeadlock,
                 win = win,
-                //visitedStates = new HashSet<IPuzzleState>(visitedStates),//TODO visited states: check if this need its own clone
                 distancesFromClosestGoal = distancesFromClosestGoal,
                 distancesFromAllGoals = distancesFromAllGoals,
                 goals = goals,
-                normalizedPlayerX = normalizedPlayerX,
-                normalizedPlayerY = normalizedPlayerY,
-                abstractSokoban = abstractSokoban
+                rewardType = rewardType
             };
         }
                 
@@ -146,56 +137,129 @@ namespace MCTS2016.Puzzles.Sokoban
             HashSet<Position> deadlockPositions = new HashSet<Position>();
             Position backupPlayer = new Position(playerX, playerY);
             int[,] backupBoard = board.Clone() as int[,];
+
             for (int x = 0; x < board.GetLength(0); x++)
             {
                 for (int y = 0; y < board.GetLength(1); y++)
                 {
-                    if (board[x, y] == BOX || board[x, y] == PLAYER)
-                        board[x, y] = EMPTY;
-                    if (board[x, y] == BOX_ON_GOAL || board[x, y] == PLAYER_ON_GOAL)
-                        board[x, y] = GOAL;
-                    //if (board[x, y] == GOAL)
-                    //{
-                    //    goals.Add(new Position(x, y));
-                    //}
+                    deadlockPositions.Add(new Position(x, y));
                 }
             }
+            simpleDeadlock = deadlockPositions;
+            ResetBoard(true);
             foreach (Position goal in goals)
             {
                 ResetBoard(true);
                 playerX = goal.X;
                 playerY = goal.Y;
-                Explore(goal.X, goal.Y, 0, goal);
+                //Debug.WriteLine(PrettyPrint());
+                //Debug.WriteLine(PrettyPrintDistance());
+                //Explore(goal.X, goal.Y, 0, goal);
+                Explore2(goal);
             }
-            ResetBoard(true);
-
-            foreach (Position goal in goals)
-            {
-                ResetBoard();
-                playerX = goal.X;
-                playerY = goal.Y;
-                Explore(goal.X, goal.Y, 0,goal);
-            }
-
-            for (int x = 0; x < board.GetLength(0); x++)
-            {
-                for (int y = 0; y < board.GetLength(1); y++)
-                {
-                    if (board[x, y] != VISITED && board[x, y] != WALL && board[x, y] != GOAL)
-                    {
-                        deadlockPositions.Add(new Position(x, y));
-                        foreach(Position goal in goals)
-                        {
-                            distancesFromAllGoals.Add(new PositionGoalPair(new Position(x, y), goal), 100);
-                        }
-                    }
-                }
-            }
+            //ResetBoard(true);
+            //Debug.WriteLine(PrettyPrintDistance());
+            //foreach (Position goal in goals)
+            //{
+            //    ResetBoard();
+            //    playerX = goal.X;
+            //    playerY = goal.Y;
+            //    Explore(goal.X, goal.Y, 0,goal);
+            //}
+            //Debug.WriteLine(PrettyPrint());
+            //for (int x = 0; x < board.GetLength(0); x++)
+            //{
+            //    for (int y = 0; y < board.GetLength(1); y++)
+            //    {
+            //        if (board[x, y] != VISITED && board[x, y] != WALL && board[x, y] != GOAL)
+            //        {
+            //            deadlockPositions.Add(new Position(x, y));
+            //            foreach(Position goal in goals)
+            //            {
+            //                distancesFromAllGoals.Add(new PositionGoalPair(new Position(x, y), goal), int.MaxValue);
+            //            }
+            //        }
+            //    }
+            //}
             board = backupBoard;
             playerX = backupPlayer.X;
             playerY = backupPlayer.Y;
             return deadlockPositions;
         }
+        void Explore2(Position goal)
+        {
+            HashSet<Position> visited = new HashSet<Position>();
+            List<PositionCost> frontier = new List<PositionCost>() { new PositionCost(goal,0) };
+            PositionCost current;
+            while (frontier.Count() != 0)
+            {
+                current = frontier[0];
+                frontier.RemoveAt(0);
+                if (!distancesFromClosestGoal.TryGetValue(current.position, out int oldValue))
+                {
+                    distancesFromClosestGoal.Add(current.position, current.cost);
+                    //distanceBoard[current.position.X, current.position.Y] = current.cost;
+                }
+                else if (current.cost < oldValue)
+                {
+                    distancesFromClosestGoal.Remove(current.position);
+                    distancesFromClosestGoal.Add(current.position, current.cost);
+                    //distanceBoard[current.position.X, current.position.Y] = current.cost;
+                }
+                //distanceBoard[current.position.X, current.position.Y] = Math.Min(current.cost, distanceBoard[current.position.X, current.position.Y]);
+                PositionGoalPair currentPair = new PositionGoalPair(current.position, goal);
+                if (!distancesFromAllGoals.TryGetValue(currentPair, out int oldPairValue))
+                {
+                    distancesFromAllGoals.Add(currentPair, current.cost);
+
+                }
+                else if (current.cost < oldPairValue)
+                {
+                    distancesFromAllGoals.Remove(currentPair);
+                    distancesFromAllGoals.Add(currentPair, current.cost);
+                }
+                playerX = current.position.X + 1;
+                playerY = current.position.Y;
+                Position child = new Position(playerX, playerY);
+                if (!visited.Contains(child) && CanPullBox(1, 0)){
+                    frontier.Add(new PositionCost(child, current.cost + 1));
+                    visited.Add(child);
+                }
+                playerX = current.position.X - 1;
+                playerY = current.position.Y;
+                child = new Position(playerX, playerY);
+                if (!visited.Contains(child) && CanPullBox(-1, 0))
+                {
+                    frontier.Add(new PositionCost(child, current.cost + 1));
+                    visited.Add(child);
+                }
+                playerX = current.position.X;
+                playerY = current.position.Y + 1;
+                child = new Position(playerX, playerY);
+                if (!visited.Contains(child) && CanPullBox(0, 1))
+                {
+                    frontier.Add(new PositionCost(child, current.cost + 1));
+                    visited.Add(child);
+                }
+                playerX = current.position.X;
+                playerY = current.position.Y - 1;
+                child = new Position(playerX, playerY);
+                if (!visited.Contains(child) && CanPullBox(0, -1))
+                {
+                    frontier.Add(new PositionCost(child, current.cost + 1));
+                    visited.Add(child);
+                }
+            }
+            foreach(Position p in visited)
+            {
+                if (simpleDeadlock.Contains(p))
+                {
+                    simpleDeadlock.Remove(p);
+                }
+            }
+        }
+
+
 
         void Explore(int x, int y, int depth, Position currentGoal)
         {
@@ -203,21 +267,26 @@ namespace MCTS2016.Puzzles.Sokoban
             if (!distancesFromClosestGoal.TryGetValue(currentPosition, out int oldValue))
             {
                 distancesFromClosestGoal.Add(currentPosition,depth);
-            }else if(depth < oldValue)
+                //distanceBoard[x, y] = depth;
+            }
+            else if(depth < oldValue)
             {
                 distancesFromClosestGoal.Remove(currentPosition);
                 distancesFromClosestGoal.Add(currentPosition, depth);
+                //distanceBoard[x, y] = depth;
             }
             /////////////HACK cost to all goals
             PositionGoalPair currentPair = new PositionGoalPair(currentPosition, currentGoal);
             if (!distancesFromAllGoals.TryGetValue(currentPair, out int oldPairValue))
             {
                 distancesFromAllGoals.Add(currentPair, depth);
+                
             }
             else if (depth < oldPairValue)
             {
                 distancesFromAllGoals.Remove(currentPair);
                 distancesFromAllGoals.Add(currentPair, depth);
+                
             }
             /////////////////
             if (board[x + 1, y] != WALL)
@@ -281,20 +350,11 @@ namespace MCTS2016.Puzzles.Sokoban
 
         public void DoMove(IPuzzleMove move)
         {
-            if (!abstractSokoban)
-            {
-                DoBasicMove(move);
-            }
-            else
-            {
-                DoAbstractMove(move);
-            }
-            
+            DoBasicMove(move);
         }
 
         private void DoBasicMove(IPuzzleMove move)
         {
-            abstractEquals = false;
             stateChanged = false;
             switch (move.ToString())
             {
@@ -326,7 +386,6 @@ namespace MCTS2016.Puzzles.Sokoban
                     break;
             }
             //visitedStates.Add(this.Clone());
-            abstractEquals = abstractSokoban;
         }
 
         private void MovePlayer(int x, int y)
@@ -359,7 +418,6 @@ namespace MCTS2016.Puzzles.Sokoban
 
         private void PushBox(int xDirection, int yDirection)
         {
-            //score++;
             if (board[playerX + 2 * xDirection, playerY + 2 * yDirection] == EMPTY)
             {
                 board[playerX + 2 * xDirection, playerY + 2 * yDirection] = BOX;
@@ -369,7 +427,6 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 stateChanged = true;
                 board[playerX + 2 * xDirection, playerY + 2 * yDirection] = BOX_ON_GOAL;
-                //score += 100;
             }
             if (stateChanged)
             {
@@ -379,7 +436,6 @@ namespace MCTS2016.Puzzles.Sokoban
                 }
                 else if (board[playerX + xDirection, playerY + yDirection] == BOX_ON_GOAL)
                 {
-                    //score-=100;
                     board[playerX + xDirection, playerY + yDirection] = PLAYER_ON_GOAL;
                 }
                 if (board[playerX, playerY] == PLAYER)
@@ -412,8 +468,6 @@ namespace MCTS2016.Puzzles.Sokoban
                     if (board[p.X, p.Y] != BOX_ON_GOAL)
                         return true;
                 }
-                //if (board[x, y] != BOX_ON_GOAL)
-                //    return true;
             }
             else
             {
@@ -500,17 +554,34 @@ namespace MCTS2016.Puzzles.Sokoban
             return verticalLock;
         }
 
-        /// <summary>
-        /// Input: Direction towards which I pull
-        /// Returns whether or not it could pull towards the new position
-        /// </summary>
-        /// <param name="xDirection"></param>
-        /// <param name="yDirection"></param>
-        /// <returns>Whether or not it could pull towards the new position</returns>
+        private bool CanPullBox(int xDirection, int yDirection)
+        {
+            //if (/*board[playerX, playerY] != VISITED &&*/
+            //    (board[playerX + xDirection, playerY + yDirection] == EMPTY || board[playerX + xDirection, playerY + yDirection] == GOAL || board[playerX + xDirection, playerY + yDirection] == VISITED))
+            //{
+            if(board[playerX, playerY] != WALL && board[playerX + xDirection, playerY + yDirection] != WALL) { 
+                //board[playerX, playerY] = VISITED;
+                //playerX += xDirection;
+                //playerY += yDirection;
+                return true;
+            }
+            return false;
+        }
+
+            /// <summary>
+            /// Input: Direction towards which I pull
+            /// Returns whether or not it could pull towards the new position
+            /// </summary>
+            /// <param name="xDirection"></param>
+            /// <param name="yDirection"></param>
+            /// <returns>Whether or not it could pull towards the new position</returns>
         private bool PullBox(int xDirection, int yDirection)
         {
-
-            if (board[playerX, playerY] != VISITED &&
+            //if(board[playerX + 2*xDirection, playerY + 2*yDirection] == WALL)
+            //{
+            //    return false;
+            //}
+            if (/*board[playerX, playerY] != VISITED &&*/
                 (board[playerX + xDirection, playerY + yDirection] == EMPTY || board[playerX + xDirection, playerY + yDirection] == GOAL || board[playerX + xDirection, playerY + yDirection] == VISITED))
             {
                 board[playerX, playerY] = VISITED;
@@ -569,19 +640,12 @@ namespace MCTS2016.Puzzles.Sokoban
 
         public List<IPuzzleMove> GetMoves()
         {
-            List<IPuzzleMove> moves = new List<IPuzzleMove>();
             if(isDeadlock || win)
             {
-                return moves;
+                return new List<IPuzzleMove>();
             }
-            if (abstractSokoban)
-            {
-                return GetAvailablePushes();
-            }
-            else
-            {
-                return GetBasicMoves();
-            }
+            return GetBasicMoves();
+            
         }
 
         public int GetPositionIndex(int x, int y)
@@ -598,29 +662,52 @@ namespace MCTS2016.Puzzles.Sokoban
 
         public double GetResult()
         {
-            //return GetScore();
-            int totalDistance = HungarianDistance();
-            //int totalDistance = ManhattanDistance();
-
-            if (totalDistance == 1)
+            double reward = 0;
+            switch (rewardType)
             {
-                totalDistance = 2;
+                case RewardType.R0:
+                    
+                    if (CheckWinCondition())
+                    {
+                        reward = 1;
+                    }
+                    else
+                    {
+                        reward = 0;
+                    }
+                    break;
+                case RewardType.InverseBM:
+                    int totalDistance = HungarianDistance();
+                    if (totalDistance == 0)
+                    {
+                        totalDistance = 1;
+                    }
+                    if(totalDistance == 1)
+                    {
+                        totalDistance = 2;
+                    }
+                    reward = (1.0 / totalDistance);
+                    break;
+                case RewardType.NegativeBM:
+                    reward = 1000-HungarianDistance();
+                    break;
+                case RewardType.LogBM:
+                    totalDistance = HungarianDistance();
+                    if (totalDistance == 0)
+                    {
+                        reward = 1;
+                    }
+                    else
+                    {
+                        reward = -Math.Log(totalDistance);
+                    }
+                    break;
+                case RewardType.PositiveBM:
+                    return HungarianDistance();
+                    break;
             }
-            if (totalDistance == 0)
-            {
-                totalDistance = 1;
-            }
-            
-            if (isDeadlock)
-            {
-                //return 0;
-                totalDistance = totalDistance * 2;
-            }
-            if (CheckWinCondition())
-            {
-                return 1;
-            }
-            return (1.0 / totalDistance);
+            return reward;
+           
         }
 
         private int ManhattanDistance()
@@ -667,7 +754,7 @@ namespace MCTS2016.Puzzles.Sokoban
                             }
                             else
                             {
-                                distance = 100;
+                                distance = 1000;
                                 currentBoxCosts.Add(distance);
                             }
                         }
@@ -688,36 +775,29 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 if (pairings[i] < 0)
                 {
-                    totalcost = 100;
+                    totalcost = 1000;
                     break;
                 }
                 totalcost += costs[i][pairings[i]];
             }
             //Debug.WriteLine(PrettyPrint());
-            //Debug.WriteLine("TotalDistance: " + totalcost);
+            //Debug.WriteLine(PrettyPrintDistance());
+            //Debug.WriteLine(totalcost);
+
             return totalcost;
         }
 
         public int GetScore()
         {
             score = 1;
-            //score = 0;
             if (isDeadlock)
             {
-                score = -1;
+                score = 0;
             }
             if (CheckWinCondition())
             {
-                score = 10000;
-                //score = 1;
+                score = 1;
             }
-            //foreach(int v in board)
-            //{
-            //    if (v == BOX_ON_GOAL)
-            //    {
-            //        score += 1;
-            //    }
-            //}
             return score;
         }
 
@@ -751,6 +831,28 @@ namespace MCTS2016.Puzzles.Sokoban
         {
             return;
         }
+
+        //public string PrettyPrintDistance()
+        //{
+        //    string s = "";
+        //    for (int y = 0; y < distanceBoard.GetLength(1); y++)
+        //    {
+        //        for (int x = 0; x < distanceBoard.GetLength(0); x++)
+        //        {
+        //            if (distanceBoard[x, y] == WALL)
+        //            {
+        //                s += WALL_STR;
+        //            }
+        //            else
+        //            {
+        //                s += distanceBoard[x, y];
+        //            }
+                    
+        //        }
+        //        s += "\n";
+        //    }
+        //    return s;
+        //}
 
         public string PrettyPrint()
         {
@@ -814,7 +916,7 @@ namespace MCTS2016.Puzzles.Sokoban
                 case PLAYER_ON_GOAL:
                     return PLAYER_ON_GOAL_STR;
                 default:
-                    return "0";
+                    return v.ToString();
             }
         }
 
@@ -835,43 +937,39 @@ namespace MCTS2016.Puzzles.Sokoban
 
         public override int GetHashCode()
         {
-            //if (abstractEquals)
-            //{
-            //    int hc = 27;
-            //    if (board != null)
-            //    {
-            //        foreach (var p in board)
-            //        {
-            //            if (p == PLAYER)
-            //            {
-            //                hc = (13 * hc) + EMPTY.GetHashCode();
-            //            }
-            //            if (p == PLAYER_ON_GOAL)
-            //            {
-            //                hc = (13 * hc) + GOAL.GetHashCode();
-            //            }
-            //            else
-            //            {
-            //                hc = (13 * hc) + p.GetHashCode();
-            //            }
-            //        }
-            //    }
-            //    hc = (13 * hc) + NormalizedPlayerX.GetHashCode();
-            //    hc = (13 * hc) + NormalizedPlayerY.GetHashCode();
-            //    return hc;
-            //}
-            //else
-            //{
-                int hc = 27;
-                if (board != null)
+            int hc = 27;
+            if (board != null)
+            {
+                foreach (var p in board)
                 {
-                    foreach (var p in board)
+                    hc = (13 * hc) + p.GetHashCode();
+                }
+            }
+            return hc;
+        }
+
+        public int GetEmptyBoardHash()
+        {
+            int hc = 27;
+            if (board != null)
+            {
+                foreach (var p in board)
+                {
+                    if (p == PLAYER)
+                    {
+                        hc = (13 * hc) + EMPTY.GetHashCode();
+                    }
+                    else if (p == PLAYER_ON_GOAL)
+                    {
+                        hc = (13 * hc) + GOAL.GetHashCode();
+                    }
+                    else
                     {
                         hc = (13 * hc) + p.GetHashCode();
                     }
                 }
-                return hc;
-            //}
+            }
+            return hc;
         }
 
         public override bool Equals(object obj)
@@ -935,105 +1033,7 @@ namespace MCTS2016.Puzzles.Sokoban
                 }
             }
             CheckWinCondition();
-            //////////////////////////////////// Avoid repeating states
-            //List<IPuzzleMove> toRemove = new List<IPuzzleMove>();
-
-            //foreach (IPuzzleMove m in moves)
-            //{
-            //    IPuzzleState s = this.Clone();
-            //    s.DoMove(m);
-            //    if (visitedStates.Contains(s))
-            //    {
-            //        toRemove.Add(m);
-            //    }
-            //}
-            //////////////////////////////////////
-            //foreach(IPuzzleMove m in toRemove)
-            //{
-            //    moves.Remove(m);
-            //}
             return moves;
-        }
-
-
-
-        private void DoAbstractMove(IPuzzleMove move)
-        {
-            SokobanPushMove pushMove = (SokobanPushMove)move;
-            TeleportPlayer(pushMove.PlayerPosition.X, pushMove.PlayerPosition.Y);
-            DoBasicMove(pushMove.PushMove);
-        }
-
-        private void TeleportPlayer(int x, int y)
-        {
-            if (board[playerX, playerY] == PLAYER)
-            {
-                board[playerX, playerY] = EMPTY;
-            }
-            else
-            {
-                board[playerX, playerY] = GOAL;
-            }
-            if (board[x,y] == EMPTY)
-            {
-                board[x,y] = PLAYER;
-            }
-            else
-            {
-                board[x,y] = PLAYER_ON_GOAL;
-            }
-            playerX = x;
-            playerY = y;
-        }
-
-        private List<IPuzzleMove> GetAvailablePushes()
-        {
-            abstractEquals = false;
-            Position normalizedPosition = new Position(int.MaxValue,int.MaxValue);
-            HashSet<SokobanGameState> visitedStates = new HashSet<SokobanGameState>();
-            List<IPuzzleMove> pushes = new List<IPuzzleMove>();
-            List<BFSNode> frontier = new List<BFSNode>();
-            frontier.Add(new BFSNode(this, null, null));
-            while (frontier.Count() > 0)
-            {
-                BFSNode currentNode = frontier[0];
-                SokobanGameState s = (SokobanGameState)currentNode.state;
-                if(s.PlayerY < normalizedPosition.Y || s.PlayerY == normalizedPosition.Y && s.playerX < normalizedPosition.X)
-                {
-                    normalizedPosition.X = s.PlayerX;
-                    normalizedPosition.Y = s.PlayerY;
-                }
-                frontier.RemoveAt(0);
-                visitedStates.Add(s);
-
-                foreach (SokobanGameMove move in s.GetBasicMoves())
-                {
-                    SokobanGameState sCopy = (SokobanGameState)s.Clone();
-                    if (move.move < 4)//Movement move
-                    {
-                        sCopy.DoBasicMove(move);
-                        if (!visitedStates.Contains(sCopy))//only expand on unvisited states
-                        {
-                            visitedStates.Add(sCopy);
-                            frontier.Add(new BFSNode(sCopy, move, currentNode));
-                        }
-                    }
-                    else//Push move
-                    {
-                        List<SokobanGameMove> movesToPush = new List<SokobanGameMove>() { };
-                        BFSNode node = currentNode;
-                        while (node.parent != null)//build move sequence that lead to push move
-                        {
-                            movesToPush.Add((SokobanGameMove)node.move);
-                            node = node.parent;
-                        }
-                        movesToPush.Reverse();
-                        pushes.Add(new SokobanPushMove(move, movesToPush, new Position(sCopy.PlayerX, sCopy.PlayerY))); //add push move to available pushes
-                    }
-                }
-            }
-            abstractEquals = true;            
-            return pushes;
         }
     }
 
@@ -1067,6 +1067,17 @@ namespace MCTS2016.Puzzles.Sokoban
         {
             return "Pos:"+position+" - Goal:"+goal;
         }
+    }
 
+    class PositionCost
+    {
+        public Position position;
+        public int cost;
+
+        public PositionCost(Position position, int cost)
+        {
+            this.position = position;
+            this.cost = cost;
+        }
     }
 }

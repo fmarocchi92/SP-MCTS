@@ -18,13 +18,13 @@ namespace MCTS2016.SP_MCTS
 
         private List<IPuzzleMove> bestRollout;
         private double topScore = double.MinValue;
-        private bool updateTopScore;
-        private bool checkForRepeatingStates = true;
+        //private bool checkForRepeatingStates = true;
+        private bool stopOnResult;
 
-
-        public SP_MCTSAlgorithm(ISPTreeNodeCreator treeCreator)
+        public SP_MCTSAlgorithm(ISPTreeNodeCreator treeCreator, bool stopOnResult)
         {
             this.treeCreator = treeCreator;
+            this.stopOnResult = stopOnResult;
         }
 
         public List<IPuzzleMove> Solve(IPuzzleState rootState, int iterations, double maxTimeInMinutes = 5)
@@ -37,7 +37,7 @@ namespace MCTS2016.SP_MCTS
 
         public IPuzzleMove Search(IPuzzleState rootState, int iterations, double maxTimeInMinutes = 5)
         {
-            HashSet<IPuzzleState> visitedStatesInTree = new HashSet<IPuzzleState>() {rootState};
+            HashSet<IPuzzleState> visitedStatesInTree = new HashSet<IPuzzleState>() { rootState.Clone() };
 
 
             int nodeCount = 0; 
@@ -58,14 +58,18 @@ namespace MCTS2016.SP_MCTS
             {
                 ISPTreeNode node = rootNode;
                 IPuzzleState state = rootState.Clone();
-                int currentBranchDepth = 0;
+                HashSet<IPuzzleState> visitedStatesInRollout = new HashSet<IPuzzleState>() { state.Clone() };
+                List<IPuzzleMove> currentRollout = new List<IPuzzleMove>();
                 // Select
                 while (!node.HasMovesToTry() && node.HasChildren())
                 {
                     node = node.SelectChild();
-                    state.DoMove(node.Move);
+                    //Debug.WriteLine("Select");
+                    //Debug.WriteLine(node.Move);
                     //Debug.WriteLine(state.PrettyPrint());
-                    currentBranchDepth++;
+                    state.DoMove(node.Move);
+                    visitedStatesInRollout.Add(state.Clone());
+                    currentRollout.Add(node.Move);
                 }
                 IPuzzleState backupState = state.Clone();
                 // Expand
@@ -74,31 +78,51 @@ namespace MCTS2016.SP_MCTS
                     IPuzzleMove move = node.SelectUntriedMove();
                     if (move != -1)
                     {
-                        state.DoMove(move);
+                        //Debug.WriteLine("Expand");
+                        //Debug.WriteLine(move);
                         //Debug.WriteLine(state.PrettyPrint());
-                        currentBranchDepth++;
+                        state.DoMove(move);
+                        if (visitedStatesInRollout.Contains(state) || visitedStatesInTree.Contains(state))
+                        {
+                            List<IPuzzleMove> untriedMoves = new List<IPuzzleMove>(node.GetUntriedMoves());
+                            int um = 0;
+                            for (;um < untriedMoves.Count() && (visitedStatesInRollout.Contains(state) || visitedStatesInTree.Contains(state)); um++)
+                            {
+                                state = backupState.Clone();
+                                move = untriedMoves[um];
+                                state.DoMove(move);
+                                node.RemoveUntriedMove(move);
+                            }
+                            if (um < untriedMoves.Count())
+                            {
+                                node = node.AddChild(move, state);
+                                currentRollout.Add(move);
+                                nodeCount++;
+                            }
+                            else
+                            {
+                                //Console.WriteLine("NO untried moves available");
+                                state = backupState;
+                            }
+                        }
+                        else
+                        {
+                            node = node.AddChild(move, state);
+                            currentRollout.Add(move);
+                            nodeCount++;
+                        }
+                        visitedStatesInRollout.Add(state.Clone());
+                        visitedStatesInTree.Add(state.Clone());
                     }
                     else
                     {
                         state.Pass();
                     }
-                    //if (!visitedStates.Contains(state))
-                    //{
-
-                        node = node.AddChild(move, state);
-                        nodeCount++;
-
-                        //break;
-                    //}
-                    //else//TODO find shortest route to state and delete the rest
-                    //{
-                    //    state = backupState;
-                    //}
                 }
 
-                List<IPuzzleMove> currentRollout = new List<IPuzzleMove>();
+                
 
-                HashSet<IPuzzleState> visitedStatesInRollout = new HashSet<IPuzzleState>() { state };
+                
                 // Rollout
                 int rolloutMovesCount = 0;
                 while (!state.isTerminal() && rolloutMovesCount<1000)
@@ -111,9 +135,15 @@ namespace MCTS2016.SP_MCTS
                     if (move != -1)
                     {
                         //Keep rollout moves
-                        
+
                         //Debug.WriteLine(move);
+                        //Debug.WriteLine("Rollout1");
+                        //Debug.WriteLine(move);
+                        //Debug.WriteLine(state.PrettyPrint());
                         state.DoMove(move);
+
+
+                        //Debug.WriteLine(state);
                         if (visitedStatesInRollout.Contains(state))
                         {
                             state = backupState.Clone();
@@ -122,9 +152,13 @@ namespace MCTS2016.SP_MCTS
                             for (triedMoves = 0; triedMoves < availableMoves.Count() && visitedStatesInRollout.Contains(state); triedMoves++)
                             {
                                 state = backupState.Clone();
-                                state.DoMove(availableMoves[triedMoves]);
+                                move = availableMoves[triedMoves];
+                                //Debug.WriteLine("Rollout2");
+                                //Debug.WriteLine(move);
+                                //Debug.WriteLine(state.PrettyPrint());
+                                state.DoMove(move);
                             }
-                            if(triedMoves < availableMoves.Count())
+                            if (triedMoves < availableMoves.Count())
                             {
                                 currentRollout.Add(move);
                                 visitedStatesInRollout.Add(state.Clone());
@@ -135,8 +169,11 @@ namespace MCTS2016.SP_MCTS
                                 break;
                             }
                         }
-                        currentRollout.Add(move);
-                        //Debug.WriteLine(state.PrettyPrint());
+                        else
+                        {
+                            currentRollout.Add(move);
+                            visitedStatesInRollout.Add(state.Clone());
+                        }
                     }
                     else
                     {
@@ -152,16 +189,18 @@ namespace MCTS2016.SP_MCTS
                 double result = state.GetResult();
                 if(result==1 && !state.EndState())
                 {
-                    Debug.WriteLine(state.PrettyPrint());
+                    //Debug.WriteLine(state.PrettyPrint());
                 }
-                if (result > topScore || result == topScore && currentRollout.Count()+currentBranchDepth < bestRollout.Count())
+                if (result > topScore || result == topScore && currentRollout.Count() < bestRollout.Count())
                 {
-                    //if(bestRollout!=null) Console.WriteLine("bestRollout:" + bestRollout.Count());
-                    //Console.WriteLine("Total Depth: "+(currentRollout.Count() + currentBranchDepth) +" rollout:"+currentRollout.Count() + " branch:"+currentBranchDepth);
                     topScore = result;
                     bestRollout = currentRollout ;
-                    bestRollout.Reverse();
-                    updateTopScore = true;
+                    
+                    if (state.EndState() && stopOnResult)
+                    {
+                        SinglePlayerMCTSMain.Log("Solution found in " + i + "rollouts");
+                        break;
+                    }
                 }
 
                 
@@ -169,38 +208,13 @@ namespace MCTS2016.SP_MCTS
                 // Backpropagate
                 while (node != null)
                 {
-                    if (updateTopScore && node.Move != null)
-                    {
-                        //Complete bestRollout with moves from nodes already in the tree
-                        bestRollout.Add(node.Move);
-                    }
                     node.Update(result);
                     node = node.Parent;
-                    
                 }
 
-                if (updateTopScore)
-                {
-                    //Debug.WriteLine(bestRollout.Count);
-                    bestRollout.Reverse();
-                    //updateTopScore = false;
-                    if (topScore > 0)
-                    {
-                        //Console.WriteLine("New top score " + topScore + " found at rollout " + i + ". Solution length: " + bestRollout.Count());
-                    }
-                }
+                
 
-                if (state.EndState() && updateTopScore)
-                {
-                    //Console.WriteLine("Solution found with score " + topScore + " found at rollout " + i + ".Solution length: " + (currentRollout.Count() + currentBranchDepth));
-                    break;//HACK delete this to continue search after finding a result;
-                }
-                if (updateTopScore)
-                {
-                    updateTopScore = false;
-                }
-
-                    if (!search)
+                if (!search)
                 {
                     search = true;
                     return null;
@@ -242,6 +256,7 @@ namespace MCTS2016.SP_MCTS
             //Remove first move from rollout so that if the topScore is not beaten we can just take the next move
 
             //Console.WriteLine("Top score so far: " + topScore);
+            
             return bestMove;
         }
 
