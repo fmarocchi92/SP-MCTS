@@ -7,22 +7,22 @@ using System.Threading.Tasks;
 
 namespace MCTS2016.BFS
 {
-    public class BFSNode
+    public class BFSNodeState
     {
         public IPuzzleState state;
         public IPuzzleMove move;
-        public BFSNode parent;
+        public BFSNodeState parent;
 
-        public BFSNode(IPuzzleState state, IPuzzleMove move, BFSNode parent)
+        public BFSNodeState(IPuzzleState state, IPuzzleMove move, BFSNodeState parent)
         {
             this.state = state;
             this.move = move;
             this.parent = parent;
         }
 
-        internal BFSNode Clone()
+        internal BFSNodeState Clone()
         {
-            return new BFSNode(state, move, parent);
+            return new BFSNodeState(state, move, parent);
         }
     }
 }

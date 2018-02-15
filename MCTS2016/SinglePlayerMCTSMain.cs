@@ -5,6 +5,7 @@ using MCTS2016.Common.Abstract;
 using MCTS2016.Puzzles.SameGame;
 using MCTS2016.Puzzles.Sokoban;
 using MCTS2016.SP_MCTS;
+using MCTS2016.IDAStar;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -91,16 +92,28 @@ namespace MCTS2016
                 PrintInputError("abstract sokoban requires a boolean value");
                 return;
             }
+            RewardType rewardType;
+            if (!RewardType.TryParse(args[8], out rewardType))
+            {
+                PrintInputError("reward type requires an integer value");
+                return;
+            }
+            bool stopOnResult;
+            if (!bool.TryParse(args[9], out stopOnResult))
+            {
+                PrintInputError("stop on result requires a boolean value");
+                return;
+            }
             //RNG.Seed(seed);
-            string logPath = args[8];
+            string logPath = args[10];
             textWriter = File.AppendText(logPath);
-            string levelPath = args[9];
+            string levelPath = args[11];
             Log("BEGIN TASK: " + game + " - const_C: " + const_C + " - const_D: " + const_D + " - iterations per move: " + iterations + " - restarts: " + restarts + " - max threads: "+maxThread+" - abstract: "+abstractSokoban);
 
             if (game.Equals("sokoban"))
             {
                 //ManualSokoban();
-                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban);
+                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban, rewardType, stopOnResult);
                 //MultiThreadSokobanTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
             }
             else if (game.Equals("samegame"))
@@ -108,6 +121,10 @@ namespace MCTS2016
 
                 MultiThreadSamegameTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
 
+            }
+            else if (game.Equals("idastar"))
+            {
+                IDAStarTest(levelPath, iterations);
             }
             else
             {
@@ -118,11 +135,51 @@ namespace MCTS2016
 
         private static void PrintInputError(string errorMessage)
         {
-            Console.WriteLine(errorMessage + ".\nArguments list:\n - game\n -const_C\n -const_D\n -iterations per search\n -number of randomized restarts\n -maximum number of threads\n -seed\n -log path\n -level path");
+            Console.WriteLine(errorMessage + ".\nArguments list:\n - game\n -const_C\n -const_D\n -iterations per search\n -number of randomized restarts\n -maximum number of threads\n -seed\n -abstractSokoban\n -rewardType\n -log path\n -level path");
             if (textWriter != null)
             {
                 textWriter.Close();
             }
+        }
+
+        private static void IDAStarTest(string levelPath, int maxCost)
+        {
+            string[] levels = ReadSokobanLevels(levelPath);
+            IPuzzleState[] states = new IPuzzleState[levels.Length];
+            int solvedLevels = 0;
+            for(int i = 0; i < states.Length; i++)
+            {
+                states[i] = new AbstractSokobanState(levels[i], RewardType.PositiveBM, null);
+                IDAStarSearch idaStar = new IDAStarSearch(states[i]);
+                Log("Level" + (i + 1) + ":\n" + states[i].PrettyPrint());
+                List<IPuzzleMove> solution = idaStar.Solve(maxCost);
+                string moves = "";
+                if (solution != null)
+                {
+                    foreach (IPuzzleMove m in solution)
+                    {
+                        //Debug.WriteLine(states[i]);
+                        //Debug.WriteLine(m);
+                        SokobanPushMove push = (SokobanPushMove)m;
+                        foreach (IPuzzleMove basicMove in push.MoveList)
+                        {
+                            moves += basicMove;
+                        }
+                        moves += push.PushMove;
+                        states[i].DoMove(m);
+                    }
+                    if (states[i].EndState())
+                    {
+                        solvedLevels++;
+                    }
+                    Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count());
+                    Log("Moves: " + moves);
+                    Log("Solved " + solvedLevels + "/" + (i + 1));
+                    Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
+                }
+            }
+            
+            
         }
 
         private static void MultiThreadSokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, int threadNumber, uint seed)
@@ -131,8 +188,8 @@ namespace MCTS2016
             Thread[] threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, true));
-                threads[i].Start();
+                //threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, true));
+                //threads[i].Start();
             }
             for (int i = 0; i < threadCount; i++)
             {
@@ -140,37 +197,8 @@ namespace MCTS2016
             }
         }
 
-        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban)
+        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult)
         {
-
-            ///////////////////////////////////////////
-            //int[][] costs = new int[4][];
-            //costs[0] = new int[] {80,40,50,86 };
-            //costs[1] = new int[] {40,70,20,25 };
-            //costs[2] = new int[] { 30, 10, 20, 30 };
-            //costs[3] = new int[] { 35, 20, 25, 30 };
-            //int[][] costs2 = new int[4][];
-            //costs2[0] = new int[] { 80, 40, 50, 86 };
-            //costs2[1] = new int[] { 40, 70, 20, 25 };
-            //costs2[2] = new int[] { 30, 10, 20, 30 };
-            //costs2[3] = new int[] { 35, 20, 25, 30 };
-            int[,] costs = new int[3, 3] { { 80, 40, 500 }, { 40, 70, 20 }, { 30, 15, 20 } };
-            //costs[0] = new int[] { 80, 40, 500 };
-            //costs[1] = new int[] { 40, 70, 20};
-            //costs[2] = new int[] { 30, 15, 20};
-            int[][] costs2 = new int[3][];
-            //costs2[0] = (int[])costs[0].Clone();
-            //costs2[1] = (int[])costs[1].Clone();
-            //costs2[2] = (int[])costs[2].Clone();
-            int[] pairings = new HungarianAlgorithm(costs).Run();
-            int totalcost = 0;
-            for(int i = 0; i < pairings.Length; i++)
-            {
-                totalcost += costs[i,pairings[i]];
-            }
-
-            ///////////////////////////////////////////
-
 
             string[] levels = ReadSokobanLevels(levelPath);
             uint threadIndex = GetThreadIndex();
@@ -178,30 +206,29 @@ namespace MCTS2016
             RNG.Seed(seed+threadIndex);
             MersenneTwister rng = new MersenneTwister(seed+threadIndex);
             ISPSimulationStrategy simulationStrategy;
-            if (abstractSokoban)
-            {
-                simulationStrategy = new SokobanInertiaStrategy(rng, 0.6);
-            }
-            else
-            {
-                simulationStrategy = new SokobanRandomStrategy();
-            }
+
+            simulationStrategy = new SokobanRandomStrategy();
             
             IPuzzleState[] states = new IPuzzleState[levels.Length];
-            SokobanMCTSStrategy player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D);
+            SokobanMCTSStrategy player;
             int solvedLevels = 0;
             for (int i = 0; i < states.Length; i++)
             {
-                
-                states[i] = new SokobanGameState(levels[i], simulationStrategy, abstractSokoban);
-                Debug.WriteLine(states[i].PrettyPrint());
+                if (abstractSokoban)
+                {
+                    states[i] = new AbstractSokobanState(levels[i], rewardType, simulationStrategy);
+                }
+                else
+                {
+                    states[i] = new SokobanGameState(levels[i], rewardType, simulationStrategy);
+                }
+                //Debug.WriteLine(states[i].PrettyPrint());
 
                 List<IPuzzleMove> moveList = new List<IPuzzleMove>();
-                player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D);
+                player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D, stopOnResult);
                 Log("Level"+(i+1)+":\n" + states[i].PrettyPrint());
 
                 string moves = "";
-
                 moveList = player.GetSolution(states[i]);
                 foreach (IPuzzleMove m in moveList)
                 {
@@ -220,9 +247,11 @@ namespace MCTS2016
                     {
                         moves += m;
                     }
+                    
+                    //Debug.WriteLine("Solution");
+                    //Debug.WriteLine(states[i]);
+                    //Debug.WriteLine(m);
                     states[i].DoMove(m);
-                    //Log("\n" + states[i].PrettyPrint());
-                    //Log("IsTerminal: " + states[i].isTerminal());
                 }
                 if (states[i].EndState())
                 {
@@ -232,22 +261,7 @@ namespace MCTS2016
                 Log("Moves: " + moves);
                 Log("Solved "+solvedLevels+"/"+(i+1));
                 Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
-                //Log("Result:\n" + states[i].PrettyPrint());
-
-                //IPuzzleMove move;
-                //while (!states[i].isTerminal())
-                //{
-                //    move = player.selectMove(states[i]);
-                //    states[i].DoMove(move);
-                //    //Log("Move: " + move);
-                //    moves += move;
-                //    //Log("\n" + states[i].PrettyPrint());
-                //    //Log("IsTerminal: " + states[i].isTerminal());
-                //}
-                //Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count());
-                //Log("Moves: " + moves);
-                //Log("Result:\n" + states[i].PrettyPrint());
-                Log("Final score: " + states[i].GetScore());
+                //Log("Final score: " + states[i].GetResult());
             }
         }
 
@@ -258,7 +272,7 @@ namespace MCTS2016
             Log("Level:\n" + level);
             MersenneTwister rng = new MersenneTwister(1+threadIndex);
             ISPSimulationStrategy simulationStrategy = new SokobanRandomStrategy();
-            SokobanGameState s = new SokobanGameState(level, simulationStrategy);
+            SokobanGameState s = new SokobanGameState(level, RewardType.NegativeBM, simulationStrategy);
             SokobanGameState backupState = (SokobanGameState) s.Clone();
             bool quit = false;
             IPuzzleMove move=null;
