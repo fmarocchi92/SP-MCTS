@@ -15,6 +15,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using MCTS2016.SP_MCTS.SP_UCT;
 
 namespace MCTS2016
 {
@@ -126,12 +127,18 @@ namespace MCTS2016
             {
                 IDAStarTest(levelPath, iterations);
             }
+            else if (game.Equals("samegameidastar"))
+            {
+                SamegameIDAStarTest(levelPath, iterations);
+            }
             else
             {
                 PrintInputError("Game must have value 'sokoban' or 'samegame'");
             }
             //textWriter.Close();
         }
+
+        
 
         private static void PrintInputError(string errorMessage)
         {
@@ -142,6 +149,37 @@ namespace MCTS2016
             }
         }
 
+        private static void SamegameIDAStarTest(string levelPath, int maxCost)//TODO Need a good heuristic for samegame
+        {
+            string[] levels = ReadSamegameLevels(levelPath);
+            IPuzzleState[] states = new IPuzzleState[levels.Length];
+            int solvedLevels = 0;
+            for (int i = 0; i < states.Length; i++)
+            {
+                states[i] = new SamegameGameState(levels[i], null, null);
+                IDAStarSearch idaStar = new IDAStarSearch(states[i]);
+                Log("Level" + (i + 1) + ":\n" + states[i].PrettyPrint());
+                List<IPuzzleMove> solution = idaStar.Solve(maxCost);
+                string moves = "";
+                if (solution != null)
+                {
+                    foreach (IPuzzleMove m in solution)
+                    {
+                        moves += m;
+                        states[i].DoMove(m);
+                    }
+                    if (states[i].EndState())
+                    {
+                        solvedLevels++;
+                    }
+                    Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count());
+                    Log("Moves: " + moves);
+                    Log("Solved " + solvedLevels + "/" + (i + 1));
+                    Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
+                }
+            }
+        }
+
         private static void IDAStarTest(string levelPath, int maxCost)
         {
             string[] levels = ReadSokobanLevels(levelPath);
@@ -149,7 +187,7 @@ namespace MCTS2016
             int solvedLevels = 0;
             for(int i = 0; i < states.Length; i++)
             {
-                states[i] = new AbstractSokobanState(levels[i], RewardType.PositiveBM, null);
+                states[i] = new AbstractSokobanState(levels[i], RewardType.PositiveBM, false, null);
                 IDAStarSearch idaStar = new IDAStarSearch(states[i]);
                 Log("Level" + (i + 1) + ":\n" + states[i].PrettyPrint());
                 List<IPuzzleMove> solution = idaStar.Solve(maxCost);
@@ -207,16 +245,16 @@ namespace MCTS2016
             MersenneTwister rng = new MersenneTwister(seed+threadIndex);
             ISPSimulationStrategy simulationStrategy;
 
-            simulationStrategy = new SokobanRandomStrategy();
-            
+            //simulationStrategy = new SokobanRandomStrategy();
+            simulationStrategy = new SokobanEGreedyStrategy(0.001, rng);
             IPuzzleState[] states = new IPuzzleState[levels.Length];
-            SokobanMCTSStrategy player;
+            //SokobanMCTSStrategy player;
             int solvedLevels = 0;
             for (int i = 0; i < states.Length; i++)
             {
                 if (abstractSokoban)
                 {
-                    states[i] = new AbstractSokobanState(levels[i], rewardType, simulationStrategy);
+                    states[i] = new AbstractSokobanState(levels[i], rewardType,false, simulationStrategy);
                 }
                 else
                 {
@@ -225,16 +263,19 @@ namespace MCTS2016
                 //Debug.WriteLine(states[i].PrettyPrint());
 
                 List<IPuzzleMove> moveList = new List<IPuzzleMove>();
-                player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D, stopOnResult);
+                //player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D, stopOnResult);
+                SP_MCTSAlgorithm mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D,rng), stopOnResult);
                 Log("Level"+(i+1)+":\n" + states[i].PrettyPrint());
 
                 string moves = "";
-                moveList = player.GetSolution(states[i]);
+                moveList = mcts.Solve(states[i], iterations);
+                //moveList = player.GetSolution(states[i]);
                 foreach (IPuzzleMove m in moveList)
                 {
                     if (abstractSokoban)
                     {
-                        //Log("Move: " + m);
+                        Debug.WriteLine("Move: " + m);
+                        Debug.WriteLine(states[i]);
                         SokobanPushMove push = (SokobanPushMove)m;
                         foreach (IPuzzleMove basicMove in push.MoveList)
                         {

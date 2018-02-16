@@ -14,4 +14,10 @@ namespace MCTS2016.Puzzles.Sokoban
         InverseBM,
         PositiveBM
     }
+
+    enum SimulationType
+    {
+        Random,
+        E_Greedy
+    }
 }
