@@ -138,35 +138,18 @@ namespace MCTS2016.Puzzles.Sokoban
             Position backupPlayer = new Position(playerX, playerY);
             int[,] backupBoard = board.Clone() as int[,];
             distanceBoard = board.Clone() as int[,];
-            //for (int x = 0; x < board.GetLength(0); x++)
-            //{
-            //    for (int y = 0; y < board.GetLength(1); y++)
-            //    {
-            //        deadlockPositions.Add(new Position(x, y));
-            //    }
-            //}
-            //simpleDeadlock = deadlockPositions;
             ResetBoard(true);
             foreach (Position goal in goals)
             {
                 ResetBoard(false);
                 playerX = goal.X;
                 playerY = goal.Y;
-                //Debug.WriteLine(PrettyPrint());
-                //Debug.WriteLine(PrettyPrintDistance());
-                //Explore(goal.X, goal.Y, 0, goal);
-                Explore2(goal);
+                CalculateDistances(goal);
+                ResetBoard(false);
+                playerX = goal.X;
+                playerY = goal.Y;
+                Explore(goal.X, goal.Y, 0);
             }
-            //ResetBoard(true);
-            //Debug.WriteLine(PrettyPrintDistance());
-            //foreach (Position goal in goals)
-            //{
-            //    ResetBoard();
-            //    playerX = goal.X;
-            //    playerY = goal.Y;
-            //    Explore(goal.X, goal.Y, 0,goal);
-            //}
-            //Debug.WriteLine(PrettyPrint());
             for (int x = 0; x < board.GetLength(0); x++)
             {
                 for (int y = 0; y < board.GetLength(1); y++)
@@ -177,14 +160,14 @@ namespace MCTS2016.Puzzles.Sokoban
                     }
                 }
             }
-            //Debug.WriteLine( PrettyPrint());
+            //Debug.WriteLine(PrettyPrint());
             //Debug.WriteLine(PrettyPrintDistance());
             board = backupBoard;
             playerX = backupPlayer.X;
             playerY = backupPlayer.Y;
             return deadlockPositions;
         }
-        void Explore2(Position goal)
+        void CalculateDistances(Position goal)
         {
             HashSet<Position> visited = new HashSet<Position>();
             List<PositionCost> frontier = new List<PositionCost>() { new PositionCost(goal,0) };
@@ -207,7 +190,6 @@ namespace MCTS2016.Puzzles.Sokoban
                     distancesFromClosestGoal.Add(current.position, current.cost);
                     distanceBoard[current.position.X, current.position.Y] = current.cost;
                 }
-                //distanceBoard[current.position.X, current.position.Y] = Math.Min(current.cost, distanceBoard[current.position.X, current.position.Y]);
                 PositionGoalPair currentPair = new PositionGoalPair(current.position, goal);
                 if (!distancesFromAllGoals.TryGetValue(currentPair, out int oldPairValue))
                 {
@@ -224,10 +206,6 @@ namespace MCTS2016.Puzzles.Sokoban
                 Position child = new Position(playerX, playerY);
                 if (!visited.Contains(child) && board[playerX, playerY] != WALL)
                 {
-                    if (board[playerX + 1, playerY] != WALL)
-                    {
-                        board[playerX, playerY] = VISITED;
-                    }
                     frontier.Add(new PositionCost(child, current.cost + 1));
                     visited.Add(child);
                 }
@@ -236,10 +214,6 @@ namespace MCTS2016.Puzzles.Sokoban
                 child = new Position(playerX, playerY);
                 if (!visited.Contains(child) && board[playerX, playerY] != WALL)
                 {
-                    if (board[playerX - 1, playerY] != WALL)
-                    {
-                        board[playerX, playerY] = VISITED;
-                    }
                     frontier.Add(new PositionCost(child, current.cost + 1));
                     visited.Add(child);
                 }
@@ -248,10 +222,6 @@ namespace MCTS2016.Puzzles.Sokoban
                 child = new Position(playerX, playerY);
                 if (!visited.Contains(child) && board[playerX, playerY] != WALL)
                 {
-                    if(board[playerX, playerY + 1] != WALL)
-                    {
-                        board[playerX, playerY] = VISITED;
-                    }
                     frontier.Add(new PositionCost(child, current.cost + 1));
                     visited.Add(child);
                 }
@@ -260,53 +230,18 @@ namespace MCTS2016.Puzzles.Sokoban
                 child = new Position(playerX, playerY);
                 if (!visited.Contains(child) && board[playerX, playerY] != WALL)
                 {
-                    if (board[playerX, playerY - 1] != WALL)
-                    {
-                        board[playerX, playerY] = VISITED;
-                    }
                     frontier.Add(new PositionCost(child, current.cost + 1));
                     visited.Add(child);
                 }
             }
-            //foreach(Position p in visited)
-            //{
-            //    if (simpleDeadlock.Contains(p))
-            //    {
-            //        simpleDeadlock.Remove(p);
-            //    }
-            //}
         }
 
 
 
-        void Explore(int x, int y, int depth, Position currentGoal)
+        void Explore(int x, int y, int depth)
         {
             Position currentPosition = new Position(x, y);
-            if (!distancesFromClosestGoal.TryGetValue(currentPosition, out int oldValue))
-            {
-                distancesFromClosestGoal.Add(currentPosition,depth);
-                //distanceBoard[x, y] = depth;
-            }
-            else if(depth < oldValue)
-            {
-                distancesFromClosestGoal.Remove(currentPosition);
-                distancesFromClosestGoal.Add(currentPosition, depth);
-                //distanceBoard[x, y] = depth;
-            }
-            /////////////HACK cost to all goals
-            PositionGoalPair currentPair = new PositionGoalPair(currentPosition, currentGoal);
-            if (!distancesFromAllGoals.TryGetValue(currentPair, out int oldPairValue))
-            {
-                distancesFromAllGoals.Add(currentPair, depth);
-                
-            }
-            else if (depth < oldPairValue)
-            {
-                distancesFromAllGoals.Remove(currentPair);
-                distancesFromAllGoals.Add(currentPair, depth);
-                
-            }
-            /////////////////
+            
             if (board[x + 1, y] != WALL)
             {
                 playerX = x + 1;
@@ -314,7 +249,7 @@ namespace MCTS2016.Puzzles.Sokoban
                 bool pulled = PullBox(1, 0);
                 if (pulled)
                 {
-                    Explore(x + 1, y, depth+1, currentGoal);
+                    Explore(x + 1, y, depth + 1);
                 }
             }
             if (board[x, y + 1] != WALL)
@@ -324,7 +259,7 @@ namespace MCTS2016.Puzzles.Sokoban
                 bool pulled = PullBox(0, 1);
                 if (pulled)
                 {
-                    Explore(x, y + 1, depth+1, currentGoal);
+                    Explore(x, y + 1, depth + 1);
                 }
             }
             if (board[x - 1, y] != WALL)
@@ -334,7 +269,7 @@ namespace MCTS2016.Puzzles.Sokoban
                 bool pulled = PullBox(-1, 0);
                 if (pulled)
                 {
-                    Explore(x - 1, y, depth+1, currentGoal);
+                    Explore(x - 1, y, depth + 1);
                 }
             }
             if (board[x, y - 1] != WALL)
@@ -344,7 +279,7 @@ namespace MCTS2016.Puzzles.Sokoban
                 bool pulled = PullBox(0, -1);
                 if (pulled)
                 {
-                    Explore(x, y - 1, depth+1, currentGoal);
+                    Explore(x, y - 1, depth + 1);
                 }
             }
         }
@@ -402,12 +337,10 @@ namespace MCTS2016.Puzzles.Sokoban
                 default:
                     break;
             }
-            //visitedStates.Add(this.Clone());
         }
 
         private void MovePlayer(int x, int y)
         {
-            //score--;
             if (board[x, y] == EMPTY)
             {
                 board[x, y] = PLAYER;
@@ -465,12 +398,16 @@ namespace MCTS2016.Puzzles.Sokoban
                 }
                 playerX += xDirection;
                 playerY += yDirection;
-                isDeadlock = CheckFreezeDeadlock(playerX + xDirection, playerY + yDirection, new HashSet<Position>(), new HashSet<Position>());
+                isDeadlock = CheckDeadlock(playerX + xDirection, playerY + yDirection, new HashSet<Position>(), new HashSet<Position>());
             }
         }
 
-        bool CheckFreezeDeadlock(int x, int y, HashSet<Position> checkedBoxes, HashSet<Position> frozenBoxes)
+        bool CheckDeadlock(int x, int y, HashSet<Position> checkedBoxes, HashSet<Position> frozenBoxes)
         {
+            if (simpleDeadlock.Contains(new Position(x, y)))
+            {
+                return true;
+            }
             bool horizontalLock = false;
             bool verticalLock = false;
             checkedBoxes.Add(new Position(x, y));
@@ -506,7 +443,7 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 if (!checkedBoxes.Contains(right))
                 {
-                    if (CheckFreezeDeadlock(x + 1, y, checkedBoxes, frozenBoxes))
+                    if (CheckDeadlock(x + 1, y, checkedBoxes, frozenBoxes))
                         horizontalLock = true;
                 }
                 else
@@ -519,7 +456,7 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 if (!checkedBoxes.Contains(left))
                 {
-                    if (CheckFreezeDeadlock(x - 1, y, checkedBoxes, frozenBoxes))
+                    if (CheckDeadlock(x - 1, y, checkedBoxes, frozenBoxes))
                         horizontalLock = true;
                 }
                 else
@@ -546,7 +483,7 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 if (!checkedBoxes.Contains(up))
                 {
-                    if (CheckFreezeDeadlock(x, y + 1, checkedBoxes, frozenBoxes))
+                    if (CheckDeadlock(x, y + 1, checkedBoxes, frozenBoxes))
                         verticalLock = true;
                 }
                 else
@@ -559,7 +496,7 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 if (!checkedBoxes.Contains(down))
                 {
-                    if (CheckFreezeDeadlock(x, y - 1, checkedBoxes, frozenBoxes))
+                    if (CheckDeadlock(x, y - 1, checkedBoxes, frozenBoxes))
                         verticalLock = true;
                 }
                 else
@@ -571,20 +508,6 @@ namespace MCTS2016.Puzzles.Sokoban
             return verticalLock;
         }
 
-        private bool CanPullBox(int xDirection, int yDirection)
-        {
-            //if (/*board[playerX, playerY] != VISITED &&*/
-            //    (board[playerX + xDirection, playerY + yDirection] == EMPTY || board[playerX + xDirection, playerY + yDirection] == GOAL || board[playerX + xDirection, playerY + yDirection] == VISITED))
-            //{
-            if(board[playerX, playerY] != WALL && board[playerX + xDirection, playerY + yDirection] != WALL) { 
-                //board[playerX, playerY] = VISITED;
-                //playerX += xDirection;
-                //playerY += yDirection;
-                return true;
-            }
-            return false;
-        }
-
             /// <summary>
             /// Input: Direction towards which I pull
             /// Returns whether or not it could pull towards the new position
@@ -594,11 +517,7 @@ namespace MCTS2016.Puzzles.Sokoban
             /// <returns>Whether or not it could pull towards the new position</returns>
         private bool PullBox(int xDirection, int yDirection)
         {
-            //if(board[playerX + 2*xDirection, playerY + 2*yDirection] == WALL)
-            //{
-            //    return false;
-            //}
-            if (/*board[playerX, playerY] != VISITED &&*/
+            if (board[playerX, playerY] != VISITED &&
                 (board[playerX + xDirection, playerY + yDirection] == EMPTY || board[playerX + xDirection, playerY + yDirection] == GOAL || board[playerX + xDirection, playerY + yDirection] == VISITED))
             {
                 board[playerX, playerY] = VISITED;
