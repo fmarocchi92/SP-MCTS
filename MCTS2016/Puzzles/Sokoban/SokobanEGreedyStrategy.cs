@@ -39,17 +39,24 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 IPuzzleState clone = gameState.Clone();
                 double maxReward = double.MinValue;
-
+                List<IPuzzleMove> bestMoves = new List<IPuzzleMove>();
                 foreach (IPuzzleMove move in clone.GetMoves())
                 {
                     clone.DoMove(move);
-                    if (clone.GetResult() > maxReward)
+                    double result = clone.GetResult();
+                    if (result > maxReward)
                     {
-                        maxReward = clone.GetResult();
-                        bestMove = move;
+                        bestMoves.Clear();
+                        bestMoves.Add(move);
+                        maxReward = result;
+                        //bestMove = move;
+                    }else if(result == maxReward)
+                    {
+                        bestMoves.Add(move);
                     }
                     clone = gameState.Clone();
                 }
+                return bestMoves[rng.Next(bestMoves.Count())];
             }
             else
             {
