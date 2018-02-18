@@ -109,12 +109,13 @@ namespace MCTS2016
             string logPath = args[10];
             textWriter = File.AppendText(logPath);
             string levelPath = args[11];
+            Log("\n");
             Log("BEGIN TASK: " + game + " - const_C: " + const_C + " - const_D: " + const_D + " - iterations per move: " + iterations + " - restarts: " + restarts + " - max threads: "+maxThread+" - abstract: "+abstractSokoban);
 
             if (game.Equals("sokoban"))
             {
                 //ManualSokoban();
-                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban, rewardType, stopOnResult);
+                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban, rewardType, stopOnResult, 0.1);
                 //MultiThreadSokobanTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
             }
             else if (game.Equals("samegame"))
@@ -130,6 +131,9 @@ namespace MCTS2016
             else if (game.Equals("samegameidastar"))
             {
                 SamegameIDAStarTest(levelPath, iterations);
+            }else if (game.Equals("sokobanTuning"))
+            {
+                SokobanTuning(levelPath, iterations, restarts, seed, abstractSokoban, stopOnResult);
             }
             else
             {
@@ -192,6 +196,7 @@ namespace MCTS2016
                 Log("Level" + (i + 1) + ":\n" + states[i].PrettyPrint());
                 List<IPuzzleMove> solution = idaStar.Solve(maxCost);
                 string moves = "";
+                int pushCount = 0;
                 if (solution != null)
                 {
                     foreach (IPuzzleMove m in solution)
@@ -202,15 +207,19 @@ namespace MCTS2016
                         foreach (IPuzzleMove basicMove in push.MoveList)
                         {
                             moves += basicMove;
+                            if (basicMove.move > 3)//the move is a push move
+                            {
+                                pushCount++;
+                            }
                         }
-                        moves += push.PushMove;
+                        
                         states[i].DoMove(m);
                     }
                     if (states[i].EndState())
                     {
                         solvedLevels++;
                     }
-                    Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count());
+                    Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count() +"/"+pushCount);
                     Log("Moves: " + moves);
                     Log("Solved " + solvedLevels + "/" + (i + 1));
                     Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
@@ -235,7 +244,7 @@ namespace MCTS2016
             }
         }
 
-        private static void SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult)
+        private static int[] SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult, double epsilonValue)
         {
 
             string[] levels = ReadSokobanLevels(levelPath);
@@ -246,10 +255,11 @@ namespace MCTS2016
             ISPSimulationStrategy simulationStrategy;
 
             //simulationStrategy = new SokobanRandomStrategy();
-            simulationStrategy = new SokobanEGreedyStrategy(0.001, rng);
+            simulationStrategy = new SokobanEGreedyStrategy(epsilonValue, rng);
             IPuzzleState[] states = new IPuzzleState[levels.Length];
             //SokobanMCTSStrategy player;
             int solvedLevels = 0;
+            int[] rolloutsCount = new int[states.Length];
             for (int i = 0; i < states.Length; i++)
             {
                 if (abstractSokoban)
@@ -265,11 +275,12 @@ namespace MCTS2016
                 List<IPuzzleMove> moveList = new List<IPuzzleMove>();
                 //player = new SokobanMCTSStrategy(rng, iterations, 600, null, const_C, const_D, stopOnResult);
                 SP_MCTSAlgorithm mcts = new SP_MCTSAlgorithm(new SP_UCTTreeNodeCreator(const_C, const_D,rng), stopOnResult);
-                Log("Level"+(i+1)+":\n" + states[i].PrettyPrint());
+                //Log("Level "+(i+1)+":\n" + states[i].PrettyPrint());
 
                 string moves = "";
                 moveList = mcts.Solve(states[i], iterations);
                 //moveList = player.GetSolution(states[i]);
+                int pushCount = 0;
                 foreach (IPuzzleMove m in moveList)
                 {
                     if (abstractSokoban)
@@ -280,13 +291,19 @@ namespace MCTS2016
                         foreach (IPuzzleMove basicMove in push.MoveList)
                         {
                             moves += basicMove;
+                            if(basicMove.move > 3)//the move is a push move
+                            {
+                                pushCount++;
+                            }
                         }
-                        moves += push.PushMove;
-
                     }
                     else
                     {
                         moves += m;
+                        if (m.move > 3)//the move is a push move
+                        {
+                            pushCount++;
+                        }
                     }
                     
                     //Debug.WriteLine("Solution");
@@ -298,12 +315,39 @@ namespace MCTS2016
                 {
                     solvedLevels++;
                 }
-                Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " solution length:" + moves.Count());
+                rolloutsCount[i] = mcts.IterationsExecuted;
+                Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " in " + mcts.IterationsExecuted + " rollouts - solution length (moves/pushes): " + moves.Count() + "/" + pushCount);
                 Log("Moves: " + moves);
                 Log("Solved "+solvedLevels+"/"+(i+1));
                 Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
                 //Log("Final score: " + states[i].GetResult());
             }
+            return rolloutsCount;
+        }
+
+        private static void SokobanTuning(string levelPath, int iterations, int restarts, uint seed, bool abstractSokoban, bool stopOnResult)
+        {
+            RewardType[] rewards = new RewardType[] { RewardType.R0, RewardType.InverseBM, RewardType.NegativeBM, RewardType.LogBM };
+            double[] constantValues = new double[] { 0.1, 0.35, 0.7, 1, 2, 4, 10, 20 };
+            double[] epsilonValues = new double[] { 0.001, 0.1, 0.5, 0.8, 1 };
+            foreach (RewardType reward in rewards)
+            {
+                foreach(double c_value in constantValues)
+                {
+                    
+                    int[] rolloutsCount = SokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, 0.1);
+                    string s = "Results Reward: " + reward + " UCT constant: " + c_value + " :";
+                    int totalRollouts = 0;
+                    for (int i = 0; i < rolloutsCount.Length; i++)
+                    {
+                        s += "\n" + (i + 1) + ": " + rolloutsCount[i];
+                        totalRollouts += rolloutsCount[i];
+                    }
+                    s += "\nTotal Rollouts" + totalRollouts;
+                    Log(s);
+                }
+            }
+
         }
 
         private static void ManualSokoban()

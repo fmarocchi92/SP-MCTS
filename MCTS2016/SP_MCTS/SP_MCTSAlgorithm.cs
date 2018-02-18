@@ -223,7 +223,7 @@ namespace MCTS2016.SP_MCTS
 
                 var outStringToWrite = string.Format(" MCTS search: {0:0.00}% [{1} of {2}] - Total used memory b(mb): {3}({4}) - Average used memory per iteration b(mb): {5}({6:N7})", (float)((iterationsExecuted + 1) * 100) / (float)iterations, iterationsExecuted + 1, iterations, usedMemory, usedMemory / 1024 / 1024, averageUsedMemoryPerIteration, (float)averageUsedMemoryPerIteration / 1024 / 1024);
 #if DEBUG
-                if (iterations > /*50000*/100000000000)
+                if (iterations > 1000000000)
                 {
                     Console.Write(outStringToWrite);
                     Console.SetCursorPosition(0, Console.CursorTop);

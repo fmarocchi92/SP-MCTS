@@ -19,18 +19,19 @@ namespace MCTS2016.Puzzles.Sokoban
         public int size { get; set; }//board width
         public int PlayerY { get => playerY;}
         public int PlayerX { get => playerX;}
+        public int[,] Board { get => board;}
 
         private bool stateChanged = false;
 
         private bool isDeadlock = false;
 
-        const int EMPTY = 0;
-        const int WALL = 1;
-        const int GOAL = 2;
-        const int BOX = 3;
-        const int BOX_ON_GOAL = 4;
-        const int PLAYER = 5;
-        const int PLAYER_ON_GOAL = 6;
+        public const int EMPTY = 0;
+        public const int WALL = 1;
+        public const int GOAL = 2;
+        public const int BOX = 3;
+        public const int BOX_ON_GOAL = 4;
+        public const int PLAYER = 5;
+        public const int PLAYER_ON_GOAL = 6;
         const int VISITED = 7;
 
         const string EMPTY_STR = " ";
@@ -642,7 +643,7 @@ namespace MCTS2016.Puzzles.Sokoban
                     }
                     break;
                 case RewardType.PositiveBM:
-                    return HungarianDistance();
+                    reward = HungarianDistance();
                     break;
             }
             return reward;

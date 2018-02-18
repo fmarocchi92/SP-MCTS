@@ -5,6 +5,7 @@ using MCTS2016.Puzzles.SameGame;
 using MCTS2016.SP_MCTS;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -189,7 +190,6 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 state.DoMove(m);
             }
-            state.DoMove(pushMove.PushMove);
         }
 
         private List<IPuzzleMove> GetAvailablePushes()
@@ -233,12 +233,87 @@ namespace MCTS2016.Puzzles.Sokoban
                             node = node.parent;
                         }
                         movesToPush.Reverse();
-                        pushes.Add(new SokobanPushMove(move, movesToPush, new Position(sCopy.PlayerX, sCopy.PlayerY))); //add push move to available pushes
+                        movesToPush.Add(move);
+                        List<SokobanGameMove> tunnel = GetTunnelMacro((SokobanGameState)s, move);
+                        if(tunnel.Count > 0)
+                        {
+                            movesToPush.AddRange(tunnel);
+                        }
+                        pushes.Add(new SokobanPushMove(movesToPush, new Position(sCopy.PlayerX, sCopy.PlayerY))); //add push move to available pushes
                     }
                 }
             }
             normalizedPlayerPosition = normalizedPosition;
             return pushes;
+        }
+
+        List<SokobanGameMove> GetTunnelMacro(SokobanGameState state, IPuzzleMove push)
+        {
+            //Debug.WriteLine(state);
+            List<SokobanGameMove> macro = new List<SokobanGameMove>();
+            Position boxToPush = null;
+            Position pushTarget = null;
+            
+            switch (push.ToString())
+            {
+                case "U":
+                    boxToPush = new Position(state.PlayerX, state.PlayerY - 1);
+                    pushTarget = new Position(state.PlayerX, state.PlayerY - 2);
+                    break;
+                case "D":
+                    boxToPush = new Position(state.PlayerX, state.PlayerY + 1);
+                    pushTarget = new Position(state.PlayerX, state.PlayerY + 2);
+                    break;
+                case "R":
+                    boxToPush = new Position(state.PlayerX + 1, state.PlayerY);
+                    pushTarget = new Position(state.PlayerX + 2, state.PlayerY);
+                    break;
+                case "L":
+                    boxToPush = new Position(state.PlayerX - 1, state.PlayerY);
+                    pushTarget = new Position(state.PlayerX - 2, state.PlayerY);
+                    break;
+            }
+            if(boxToPush.X == pushTarget.X &&
+                state.Board[boxToPush.X + 1, boxToPush.Y] == SokobanGameState.WALL && state.Board[boxToPush.X -1, boxToPush.Y] == SokobanGameState.WALL) //Vertical push
+            {
+                while((state.Board[pushTarget.X, pushTarget.Y] == SokobanGameState.EMPTY || state.Board[pushTarget.X, pushTarget.Y] == SokobanGameState.GOAL) &&
+                    state.Board[pushTarget.X + 1, pushTarget.Y] == SokobanGameState.WALL && state.Board[pushTarget.X -1, pushTarget.Y] == SokobanGameState.WALL)
+                {
+                    SokobanGameMove move;
+                    if (pushTarget.Y > boxToPush.Y)
+                    {
+                        move = new SokobanGameMove("D");
+                        pushTarget.Y++;
+                    }
+                    else
+                    {
+                        move = new SokobanGameMove("U");
+                        pushTarget.Y--;
+                    }
+                    macro.Add(move);
+                }
+            }
+            else if (state.Board[boxToPush.X, boxToPush.Y + 1] == SokobanGameState.WALL && state.Board[boxToPush.X, boxToPush.Y - 1] == SokobanGameState.WALL)//horizontal push
+            {
+                while ((state.Board[pushTarget.X, pushTarget.Y] == SokobanGameState.EMPTY || state.Board[pushTarget.X, pushTarget.Y] == SokobanGameState.GOAL) &&
+                    state.Board[pushTarget.X, pushTarget.Y + 1] == SokobanGameState.WALL && state.Board[pushTarget.X, pushTarget.Y - 1] == SokobanGameState.WALL)
+                {
+                    SokobanGameMove move;
+                    if (pushTarget.X > boxToPush.X)
+                    {
+                        move = new SokobanGameMove("R");
+                        pushTarget.X++;
+                    }
+                    else
+                    {
+                        move = new SokobanGameMove("L");
+                        pushTarget.X--;
+                    }
+                    macro.Add(move);
+                }
+
+            }
+            return macro;
         }
     }
 }

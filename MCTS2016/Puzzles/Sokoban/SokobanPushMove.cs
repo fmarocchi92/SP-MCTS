@@ -17,12 +17,10 @@ namespace MCTS2016.Puzzles.Sokoban
         private List<SokobanGameMove> moveList;
 
         internal List<SokobanGameMove> MoveList { get => moveList; set => moveList = value; }
-        internal SokobanGameMove PushMove { get => pushMove; set => pushMove = value; }
         internal Position PlayerPosition { get => playerPosition; set => playerPosition = value; }
 
-        public SokobanPushMove(SokobanGameMove pushMove, List<SokobanGameMove> moves, Position playerPosition)
+        public SokobanPushMove(List<SokobanGameMove> moves, Position playerPosition)
         {
-            PushMove = pushMove;
             MoveList = moves;
             PlayerPosition = playerPosition;
         }
@@ -34,7 +32,7 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 s += m;
             }
-            return playerPosition+":"+ s+PushMove.ToString();
+            return playerPosition+":"+ s;
         }
     }
 }
