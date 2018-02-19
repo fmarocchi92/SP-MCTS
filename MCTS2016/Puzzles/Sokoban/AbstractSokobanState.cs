@@ -22,17 +22,17 @@ namespace MCTS2016.Puzzles.Sokoban
         private bool useNormalizedPosition;
         private MersenneTwister rng;
 
-        public AbstractSokobanState(SokobanGameState state, RewardType rewardType, bool useNormalizedPosition, ISPSimulationStrategy simulationStrategy = null)
+        public AbstractSokobanState(SokobanGameState state, RewardType rewardType, bool useNormalizedPosition, ISPSimulationStrategy simulationStrategy = null, MersenneTwister rng = null)
         {
-            Init(state, rewardType, useNormalizedPosition, simulationStrategy);
+            Init(state, rewardType, useNormalizedPosition, simulationStrategy, rng);
         }   
 
-        public AbstractSokobanState(String level, RewardType rewardType, bool useNormalizedPosition, ISPSimulationStrategy simulationStrategy = null)
+        public AbstractSokobanState(String level, RewardType rewardType, bool useNormalizedPosition, ISPSimulationStrategy simulationStrategy = null, MersenneTwister rng = null)
         {
-            Init(new SokobanGameState(level, rewardType, simulationStrategy), rewardType, useNormalizedPosition, simulationStrategy);
+            Init(new SokobanGameState(level, rewardType, simulationStrategy), rewardType, useNormalizedPosition, simulationStrategy, rng);
         }
 
-        private void Init (SokobanGameState state, RewardType rewardType, bool useNormalizedPosition, ISPSimulationStrategy simulationStrategy)
+        private void Init (SokobanGameState state, RewardType rewardType, bool useNormalizedPosition, ISPSimulationStrategy simulationStrategy, MersenneTwister rng = null)
         {
             this.useNormalizedPosition = useNormalizedPosition;
             this.state = (SokobanGameState)state;
@@ -40,6 +40,11 @@ namespace MCTS2016.Puzzles.Sokoban
             {
                 simulationStrategy = new SokobanRandomStrategy();
             }
+            if (rng == null)
+            {
+                rng = new MersenneTwister(0);
+            }
+            this.rng = rng;
             this.rewardType = rewardType;
             this.simulationStrategy = simulationStrategy;
             normalizedPlayerPosition = new Position(int.MaxValue, int.MaxValue);
@@ -50,7 +55,7 @@ namespace MCTS2016.Puzzles.Sokoban
 
         public IPuzzleState Clone()
         {
-            IPuzzleState clone = new AbstractSokobanState((SokobanGameState)state.Clone(), rewardType, useNormalizedPosition, simulationStrategy);
+            IPuzzleState clone = new AbstractSokobanState((SokobanGameState)state.Clone(), rewardType, useNormalizedPosition, simulationStrategy, rng);
             return clone;
         }
 
@@ -117,7 +122,7 @@ namespace MCTS2016.Puzzles.Sokoban
         public IPuzzleMove GetRandomMove()
         {
             List<IPuzzleMove> moves = GetMoves();
-            int rndIndex = RNG.Next(moves.Count);//TODO if multithread use own rng
+            int rndIndex = rng.Next(moves.Count);//TODO if multithread use own rng
             return moves[rndIndex];
         }
 

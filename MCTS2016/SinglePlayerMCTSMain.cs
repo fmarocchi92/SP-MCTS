@@ -24,6 +24,7 @@ namespace MCTS2016
         private static Object taskLock = new object();
         private static int[] taskTaken;
         private static int[] scores;
+        private static bool[] solved;
         private static List<IPuzzleMove>[] bestMoves;
         private static int currentTaskIndex=0;
         private static uint threadIndex;
@@ -115,7 +116,7 @@ namespace MCTS2016
             switch (game)
             {
                 case "sokoban":
-                    SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban, rewardType, stopOnResult, 0.1);
+                    MultiThreadSokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban, rewardType, stopOnResult, 0.1, true, maxThread);
                     break;
                 case "samegame":
                     MultiThreadSamegameTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
@@ -126,7 +127,7 @@ namespace MCTS2016
                 case "sokobanTuning":
                     string c_valuesPath = args[12];
                     string e_valuesPath = args[13];
-                    SokobanTuning(levelPath,c_valuesPath, e_valuesPath, iterations, restarts, seed, abstractSokoban, stopOnResult);
+                    SokobanTuning(levelPath,c_valuesPath, e_valuesPath, iterations, restarts, seed, abstractSokoban, stopOnResult, maxThread);
                     break;
                 default:
                     PrintInputError("Invalid game value");
@@ -226,29 +227,56 @@ namespace MCTS2016
             
         }
 
-        private static void MultiThreadSokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, int threadNumber, uint seed)
+        private static int[] MultiThreadSokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult, double epsilonValue, bool log = true, int threadNumber = 8)
         {
+            string[] levels = ReadSokobanLevels(levelPath);
             int threadCount = Math.Min(Environment.ProcessorCount, threadNumber);
+            taskTaken = new int[levels.Length];
+            scores = new int[levels.Length];
+            solved = new bool[levels.Length];
+            SinglePlayerMCTSMain.restarts = restarts;
+
             Thread[] threads = new Thread[threadCount];
+            threadIndex = 0;
             for (int i = 0; i < threadCount; i++)
             {
-                //threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, true));
+                threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levels, seed, abstractSokoban, rewardType, stopOnResult, epsilonValue, log));
                 threads[i].Start();
             }
             for (int i = 0; i < threadCount; i++)
             {
                 threads[i].Join();
             }
+            if (log)
+            {
+                int solvedCount = 0;
+                for (int i = 0; i < levels.Length; i++)
+                {
+                    if (solved[i])
+                        solvedCount++;
+                    Log("Level " + (i + 1) + " solved: " + (solved[i]) + " in " + scores[i]);
+                }
+                Log("Solved " + solvedCount + "/" + levels.Length);
+            }
+            return scores;
         }
 
-        private static int[] SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult, double epsilonValue, bool log=true)
+        private static int[] SokobanTest(double const_C, double const_D, int iterations, int restarts, string[] levels, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult, double epsilonValue, bool log)
         {
+            
+            
+            //while (currentLevelIndex >= 0)
+            //{
+            //    ISPSimulationStrategy simulationStrategy = new SamegameTabuColorRandomStrategy(levels[currentLevelIndex], rnd);
+            //    SamegameGameState s = new SamegameGameState(levels[currentLevelIndex], rnd, simulationStrategy);
+            //}
 
-            string[] levels = ReadSokobanLevels(levelPath);
+            
             uint threadIndex = GetThreadIndex();
             
             RNG.Seed(seed+threadIndex);
             MersenneTwister rng = new MersenneTwister(seed+threadIndex);
+            int currentLevelIndex = GetTaskIndex(threadIndex);
             ISPSimulationStrategy simulationStrategy;
 
             //simulationStrategy = new SokobanRandomStrategy();
@@ -259,9 +287,13 @@ namespace MCTS2016
             int[] rolloutsCount = new int[states.Length];
             for (int i = 0; i < states.Length; i++)
             {
+                if(i%SinglePlayerMCTSMain.threadIndex != threadIndex)
+                {
+                    continue;
+                }
                 if (abstractSokoban)
                 {
-                    states[i] = new AbstractSokobanState(levels[i], rewardType,false, simulationStrategy);
+                    states[i] = new AbstractSokobanState(levels[i], rewardType,false, simulationStrategy,rng);
                 }
                 else
                 {
@@ -282,8 +314,8 @@ namespace MCTS2016
                 {
                     if (abstractSokoban)
                     {
-                        //Debug.WriteLine("Move: " + m);
-                        //Debug.WriteLine(states[i]);
+                        Debug.WriteLine("Move: " + m);
+                        Debug.WriteLine(states[i]);
                         SokobanPushMove push = (SokobanPushMove)m;
                         foreach (IPuzzleMove basicMove in push.MoveList)
                         {
@@ -313,11 +345,13 @@ namespace MCTS2016
                     solvedLevels++;
                 }
                 rolloutsCount[i] = mcts.IterationsExecuted;
+                scores[i] = rolloutsCount[i];
+                solved[i] = states[i].EndState();
                 if (log)
                 {
                     Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " in " + mcts.IterationsExecuted + " rollouts - solution length (moves/pushes): " + moves.Count() + "/" + pushCount);
-                    //Log("Moves: " + moves);
-                    Log("Solved " + solvedLevels + "/" + (i + 1));
+                    Log("Moves: " + moves);
+                    //Log("Solved " + solvedLevels + "/" + (i + 1));
                 }
                 Console.Write("\r                              ");
                 Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
@@ -326,7 +360,7 @@ namespace MCTS2016
             return rolloutsCount;
         }
 
-        private static void SokobanTuning(string levelPath, string c_valuesPath, string e_valuesPath, int iterations, int restarts, uint seed, bool abstractSokoban, bool stopOnResult)
+        private static void SokobanTuning(string levelPath, string c_valuesPath, string e_valuesPath, int iterations, int restarts, uint seed, bool abstractSokoban, bool stopOnResult, int maxThread)
         {
             RewardType[] rewards = new RewardType[] {RewardType.InverseBM, RewardType.NegativeBM, RewardType.LogBM };
             double[] constantValues = ReadDoubleValues(c_valuesPath);
@@ -335,7 +369,7 @@ namespace MCTS2016
             double bestC_value = -1;
             int minTotalRollout = int.MaxValue;
 
-            int[] rolloutsCount = SokobanTest(1, 0, iterations, restarts, levelPath, seed, abstractSokoban, RewardType.R0, stopOnResult, 0.2, false);
+            int[] rolloutsCount = MultiThreadSokobanTest(1, 0, iterations, restarts, levelPath, seed, abstractSokoban, RewardType.R0, stopOnResult, 0.2, false, maxThread);
             Log("Results Reward: " + bestReward + " :");
             int totalRollouts = 0;
             for (int i = 0; i < rolloutsCount.Length; i++)
@@ -350,7 +384,7 @@ namespace MCTS2016
             {
                 foreach(double c_value in constantValues)
                 {
-                    rolloutsCount = SokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, 0.2, false);
+                    rolloutsCount = MultiThreadSokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, 0.2, false, maxThread);
                     Log( "Results Reward: " + reward + " UCT constant: " + c_value + " :");
                     totalRollouts = 0;
                     for (int i = 0; i < rolloutsCount.Length; i++)
@@ -374,7 +408,7 @@ namespace MCTS2016
             double bestEpsilon = -1;
             foreach (double epsilon in epsilonValues)
             {
-                rolloutsCount = SokobanTest(bestC_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, bestReward, stopOnResult, epsilon, false);
+                rolloutsCount = MultiThreadSokobanTest(bestC_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, bestReward, stopOnResult, epsilon, false, maxThread);
                 Log( "Results epsilon: " + epsilon);
                 totalRollouts = 0;
                 for (int i = 0; i < rolloutsCount.Length; i++)
@@ -543,7 +577,6 @@ namespace MCTS2016
                 }
                 currentLevelIndex = GetTaskIndex(threadIndex);
             }
-            
         }
 
         private static string[] ReadSamegameLevels(string levelPath)
