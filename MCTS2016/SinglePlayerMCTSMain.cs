@@ -112,32 +112,29 @@ namespace MCTS2016
             Log("\n");
             Log("BEGIN TASK: " + game + " - const_C: " + const_C + " - const_D: " + const_D + " - iterations per move: " + iterations + " - restarts: " + restarts + " - max threads: "+maxThread+" - abstract: "+abstractSokoban);
 
-            if (game.Equals("sokoban"))
+            switch (game)
             {
-                //ManualSokoban();
-                SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban, rewardType, stopOnResult, 0.1);
-                //MultiThreadSokobanTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
+                case "sokoban":
+                    SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, abstractSokoban, rewardType, stopOnResult, 0.1);
+                    break;
+                case "samegame":
+                    MultiThreadSamegameTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
+                    break;
+                case "idastar":
+                    IDAStarTest(levelPath, iterations);
+                    break;
+                case "sokobanTuning":
+                    string c_valuesPath = args[12];
+                    string e_valuesPath = args[13];
+                    SokobanTuning(levelPath,c_valuesPath, e_valuesPath, iterations, restarts, seed, abstractSokoban, stopOnResult);
+                    break;
+                default:
+                    PrintInputError("Invalid game value");
+                    break;
             }
-            else if (game.Equals("samegame"))
-            {
-
-                MultiThreadSamegameTest(const_C, const_D, iterations, restarts, levelPath, maxThread, seed);
-
-            }
-            else if (game.Equals("idastar"))
-            {
-                IDAStarTest(levelPath, iterations);
-            }
-            else if (game.Equals("samegameidastar"))
+            if (game.Equals("samegameidastar"))
             {
                 SamegameIDAStarTest(levelPath, iterations);
-            }else if (game.Equals("sokobanTuning"))
-            {
-                SokobanTuning(levelPath, iterations, restarts, seed, abstractSokoban, stopOnResult);
-            }
-            else
-            {
-                PrintInputError("Game must have value 'sokoban' or 'samegame'");
             }
             //textWriter.Close();
         }
@@ -236,7 +233,7 @@ namespace MCTS2016
             for (int i = 0; i < threadCount; i++)
             {
                 //threads[i] = new Thread(() => SokobanTest(const_C, const_D, iterations, restarts, levelPath, seed, true));
-                //threads[i].Start();
+                threads[i].Start();
             }
             for (int i = 0; i < threadCount; i++)
             {
@@ -244,7 +241,7 @@ namespace MCTS2016
             }
         }
 
-        private static int[] SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult, double epsilonValue)
+        private static int[] SokobanTest(double const_C, double const_D, int iterations, int restarts, string levelPath, uint seed, bool abstractSokoban, RewardType rewardType, bool stopOnResult, double epsilonValue, bool log=true)
         {
 
             string[] levels = ReadSokobanLevels(levelPath);
@@ -285,8 +282,8 @@ namespace MCTS2016
                 {
                     if (abstractSokoban)
                     {
-                        Debug.WriteLine("Move: " + m);
-                        Debug.WriteLine(states[i]);
+                        //Debug.WriteLine("Move: " + m);
+                        //Debug.WriteLine(states[i]);
                         SokobanPushMove push = (SokobanPushMove)m;
                         foreach (IPuzzleMove basicMove in push.MoveList)
                         {
@@ -316,38 +313,84 @@ namespace MCTS2016
                     solvedLevels++;
                 }
                 rolloutsCount[i] = mcts.IterationsExecuted;
-                Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " in " + mcts.IterationsExecuted + " rollouts - solution length (moves/pushes): " + moves.Count() + "/" + pushCount);
-                Log("Moves: " + moves);
-                Log("Solved "+solvedLevels+"/"+(i+1));
+                if (log)
+                {
+                    Log("Level " + (i + 1) + " solved: " + (states[i].EndState()) + " in " + mcts.IterationsExecuted + " rollouts - solution length (moves/pushes): " + moves.Count() + "/" + pushCount);
+                    //Log("Moves: " + moves);
+                    Log("Solved " + solvedLevels + "/" + (i + 1));
+                }
+                Console.Write("\r                              ");
                 Console.Write("\rSolved " + solvedLevels + "/" + (i + 1));
                 //Log("Final score: " + states[i].GetResult());
             }
             return rolloutsCount;
         }
 
-        private static void SokobanTuning(string levelPath, int iterations, int restarts, uint seed, bool abstractSokoban, bool stopOnResult)
+        private static void SokobanTuning(string levelPath, string c_valuesPath, string e_valuesPath, int iterations, int restarts, uint seed, bool abstractSokoban, bool stopOnResult)
         {
-            RewardType[] rewards = new RewardType[] { RewardType.R0, RewardType.InverseBM, RewardType.NegativeBM, RewardType.LogBM };
-            double[] constantValues = new double[] { 0.1, 0.35, 0.7, 1, 2, 4, 10, 20 };
-            double[] epsilonValues = new double[] { 0.001, 0.1, 0.5, 0.8, 1 };
+            RewardType[] rewards = new RewardType[] {RewardType.InverseBM, RewardType.NegativeBM, RewardType.LogBM };
+            double[] constantValues = ReadDoubleValues(c_valuesPath);
+            double[] epsilonValues = ReadDoubleValues(e_valuesPath);
+            RewardType bestReward = RewardType.R0;
+            double bestC_value = -1;
+            int minTotalRollout = int.MaxValue;
+
+            int[] rolloutsCount = SokobanTest(1, 0, iterations, restarts, levelPath, seed, abstractSokoban, RewardType.R0, stopOnResult, 0.2, false);
+            Log("Results Reward: " + bestReward + " :");
+            int totalRollouts = 0;
+            for (int i = 0; i < rolloutsCount.Length; i++)
+            {
+                Log((i + 1) + ": " + rolloutsCount[i]);
+                totalRollouts += rolloutsCount[i];
+            }
+            Log("Total Rollouts: " + totalRollouts);
+            minTotalRollout = totalRollouts;
+
             foreach (RewardType reward in rewards)
             {
                 foreach(double c_value in constantValues)
                 {
-                    
-                    int[] rolloutsCount = SokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, 0.1);
-                    string s = "Results Reward: " + reward + " UCT constant: " + c_value + " :";
-                    int totalRollouts = 0;
+                    rolloutsCount = SokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, 0.2, false);
+                    Log( "Results Reward: " + reward + " UCT constant: " + c_value + " :");
+                    totalRollouts = 0;
                     for (int i = 0; i < rolloutsCount.Length; i++)
                     {
-                        s += "\n" + (i + 1) + ": " + rolloutsCount[i];
+                        Log((i + 1) + ": " + rolloutsCount[i]);
                         totalRollouts += rolloutsCount[i];
                     }
-                    s += "\nTotal Rollouts" + totalRollouts;
-                    Log(s);
+                    Log("Total Rollouts: " + totalRollouts);
+                    
+                    if(totalRollouts < minTotalRollout)
+                    {
+                        bestReward = reward;
+                        bestC_value = c_value;
+                        minTotalRollout = totalRollouts;
+                    }
                 }
             }
 
+            
+            minTotalRollout = int.MaxValue;
+            double bestEpsilon = -1;
+            foreach (double epsilon in epsilonValues)
+            {
+                rolloutsCount = SokobanTest(bestC_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, bestReward, stopOnResult, epsilon, false);
+                Log( "Results epsilon: " + epsilon);
+                totalRollouts = 0;
+                for (int i = 0; i < rolloutsCount.Length; i++)
+                {
+                    Log((i + 1) + ": " + rolloutsCount[i]);
+                    totalRollouts += rolloutsCount[i];
+                }
+                Log("Total Rollouts: " + totalRollouts);
+                
+                if (totalRollouts < minTotalRollout)
+                {
+                    bestEpsilon = epsilon;
+                    minTotalRollout = totalRollouts;
+                }
+            }
+            Log("Best reward :" + bestReward.ToString() + "; Best C value:" + bestC_value+ "; Best epsilon value: " + bestEpsilon);
         }
 
         private static void ManualSokoban()
@@ -522,7 +565,17 @@ namespace MCTS2016
             return levels;
         }
 
-            private static int GetTaskIndex( uint threadIndex)
+        private static double[] ReadDoubleValues(string filePath)
+        {
+            StreamReader reader = File.OpenText(filePath);
+            string fullString = reader.ReadToEnd();
+            reader.Close();
+            string[] stringValues = fullString.Split(new string[] { "," }, StringSplitOptions.RemoveEmptyEntries);
+            double[] values = Array.ConvertAll(stringValues, double.Parse);
+            return values;
+        }
+        
+        private static int GetTaskIndex( uint threadIndex)
         {
             lock (taskLock)
             {

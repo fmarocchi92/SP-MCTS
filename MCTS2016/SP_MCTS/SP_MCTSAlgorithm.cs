@@ -39,9 +39,6 @@ namespace MCTS2016.SP_MCTS
 
         public IPuzzleMove Search(IPuzzleState rootState, int iterations, double maxTimeInMinutes = 5)
         {
-            HashSet<IPuzzleState> visitedStatesInTree = new HashSet<IPuzzleState>() { rootState };
-
-
             int nodeCount = 0;
             if (!search)
             {
@@ -114,7 +111,6 @@ namespace MCTS2016.SP_MCTS
                             nodeCount++;
                         }
                         visitedStatesInRollout.Add(state.Clone());
-                        visitedStatesInTree.Add(state.Clone());
                     }
                     else
                     {

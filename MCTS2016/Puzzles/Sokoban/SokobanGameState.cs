@@ -624,15 +624,23 @@ namespace MCTS2016.Puzzles.Sokoban
                     }
                     if (isDeadlock)
                     {
-                        totalDistance += 2*size;
+                        totalDistance += 1*size;
                     }
                     reward = (1.0 / Math.Sqrt(totalDistance));
                     break;
                 case RewardType.NegativeBM:
                     reward = -HungarianDistance();
+                    if (isDeadlock)
+                    {
+                        reward -= 1 * size;
+                    }
                     break;
                 case RewardType.LogBM:
                     totalDistance = HungarianDistance();
+                    if (isDeadlock)
+                    {
+                        totalDistance += 1 * size;
+                    }
                     if (totalDistance == 0)
                     {
                         reward = 1;

@@ -23,17 +23,13 @@ namespace MCTS2016.SP_MCTS.SP_UCT
         private double squaredReward;
         private double topScore;
         private MersenneTwister rnd;
-        private bool graphMode;
-        private HashSet<IPuzzleState> visitedStates;
 
-
-        public SP_UCTTreeNode(IPuzzleMove move, SP_UCTTreeNode parent, IPuzzleState state, MersenneTwister rng, double const_C = 1, double const_D = 20000, bool generateUntriedMoves = true, bool graphMode = true, HashSet<IPuzzleState> visitedStates = null)
+        public SP_UCTTreeNode(IPuzzleMove move, SP_UCTTreeNode parent, IPuzzleState state, MersenneTwister rng, double const_C = 1, double const_D = 20000, bool generateUntriedMoves = true)
         {
             this.move = move;
             this.parent = parent;
             this.const_C = const_C;
             this.const_D = const_D;
-            this.graphMode = graphMode;
             rnd = rng;
             childNodes = new List<SP_UCTTreeNode>();
             wins = 0;
@@ -44,14 +40,10 @@ namespace MCTS2016.SP_MCTS.SP_UCT
             {
                 untriedMoves = state.GetMoves();
             }
-            if (graphMode)
-            {
-                this.visitedStates = visitedStates;
-            }
         }
 
         public ISPTreeNode Parent
-        {
+        {   
             get { return parent; }
         }
 
@@ -75,9 +67,8 @@ namespace MCTS2016.SP_MCTS.SP_UCT
         public virtual ISPTreeNode AddChild(IPuzzleMove move, IPuzzleState state)
         {
             untriedMoves.Remove(move);
-            SP_UCTTreeNode n = new SP_UCTTreeNode(move, this, state, rnd, const_C, const_D, true, graphMode, visitedStates);
+            SP_UCTTreeNode n = new SP_UCTTreeNode(move, this, state, rnd, const_C, const_D, true);
             childNodes.Add(n);
-            visitedStates.Add(state);
             return n;
         }
 
