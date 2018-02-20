@@ -67,7 +67,6 @@ namespace MCTS2016.SP_MCTS
                     state.DoMove(node.Move);
                     visitedStatesInRollout.Add(state.Clone());
                     currentRollout.Add(node.Move);
-                    //Debug.WriteLine(state.PrettyPrint());
                     currentBranchDepth++;
                 }
                 IPuzzleState backupState = state.Clone();

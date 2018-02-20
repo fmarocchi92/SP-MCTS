@@ -362,68 +362,90 @@ namespace MCTS2016
 
         private static void SokobanTuning(string levelPath, string c_valuesPath, string e_valuesPath, int iterations, int restarts, uint seed, bool abstractSokoban, bool stopOnResult, int maxThread)
         {
-            RewardType[] rewards = new RewardType[] {RewardType.InverseBM, RewardType.NegativeBM, RewardType.LogBM };
+            RewardType[] rewards = new RewardType[] { RewardType.R0, RewardType.InverseBM, RewardType.NegativeBM, RewardType.LogBM };
             double[] constantValues = ReadDoubleValues(c_valuesPath);
             double[] epsilonValues = ReadDoubleValues(e_valuesPath);
             RewardType bestReward = RewardType.R0;
             double bestC_value = -1;
             int minTotalRollout = int.MaxValue;
-
-            int[] rolloutsCount = MultiThreadSokobanTest(1, 0, iterations, restarts, levelPath, seed, abstractSokoban, RewardType.R0, stopOnResult, 0.2, false, maxThread);
-            Log("Results Reward: " + bestReward + " :");
+            double bestEpsilon = -1;
+            //int[] rolloutsCount = MultiThreadSokobanTest(1, 0, iterations, restarts, levelPath, seed, abstractSokoban, RewardType.R0, stopOnResult, 0.2, false, maxThread);
+            //Log("Results Reward: " + bestReward + " :");
+            //int totalRollouts = 0;
+            //for (int i = 0; i < rolloutsCount.Length; i++)
+            //{
+            //    Log((i + 1) + ": " + rolloutsCount[i]);
+            //    totalRollouts += rolloutsCount[i];
+            //}
+            //Log("Total Rollouts: " + totalRollouts);
+            //minTotalRollout = totalRollouts;
             int totalRollouts = 0;
-            for (int i = 0; i < rolloutsCount.Length; i++)
-            {
-                Log((i + 1) + ": " + rolloutsCount[i]);
-                totalRollouts += rolloutsCount[i];
-            }
-            Log("Total Rollouts: " + totalRollouts);
-            minTotalRollout = totalRollouts;
-
+            
             foreach (RewardType reward in rewards)
             {
                 foreach(double c_value in constantValues)
                 {
-                    rolloutsCount = MultiThreadSokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, 0.2, false, maxThread);
-                    Log( "Results Reward: " + reward + " UCT constant: " + c_value + " :");
-                    totalRollouts = 0;
-                    for (int i = 0; i < rolloutsCount.Length; i++)
+                    foreach (double epsilon in epsilonValues)
                     {
-                        Log((i + 1) + ": " + rolloutsCount[i]);
-                        totalRollouts += rolloutsCount[i];
-                    }
-                    Log("Total Rollouts: " + totalRollouts);
-                    
-                    if(totalRollouts < minTotalRollout)
-                    {
-                        bestReward = reward;
-                        bestC_value = c_value;
-                        minTotalRollout = totalRollouts;
+                        totalRollouts = 0;
+                        List<int> rolloutsCount = new List<int>();
+                        Log("Testing Reward: " + reward + " UCT constant: " + c_value + " epsilon: "+epsilon);
+                        for (int i = 0; i < restarts; i++)
+                        {
+                            MultiThreadSokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, epsilon, false, maxThread);
+                            for (int j = 0; j < scores.Length; j++)
+                            {
+                                if (rolloutsCount.Count() <= j)
+                                {
+                                    rolloutsCount.Add(scores[j]);
+                                }
+                                else
+                                {
+                                    rolloutsCount[j] += scores[j];
+                                }
+                            }
+                        }
+                        
+
+                        for (int j = 0; j < scores.Length; j++)
+                        {
+                            rolloutsCount[j] = rolloutsCount[j] / restarts;
+                            Log((j + 1) + ": " + rolloutsCount[j]);
+                            totalRollouts += rolloutsCount[j];
+                        }
+                        Log("Total Rollouts: " + totalRollouts);
+                        if (totalRollouts < minTotalRollout)
+                        {
+                            bestReward = reward;
+                            bestC_value = c_value;
+                            minTotalRollout = totalRollouts;
+                        }
+                        
                     }
                 }
             }
 
             
-            minTotalRollout = int.MaxValue;
-            double bestEpsilon = -1;
-            foreach (double epsilon in epsilonValues)
-            {
-                rolloutsCount = MultiThreadSokobanTest(bestC_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, bestReward, stopOnResult, epsilon, false, maxThread);
-                Log( "Results epsilon: " + epsilon);
-                totalRollouts = 0;
-                for (int i = 0; i < rolloutsCount.Length; i++)
-                {
-                    Log((i + 1) + ": " + rolloutsCount[i]);
-                    totalRollouts += rolloutsCount[i];
-                }
-                Log("Total Rollouts: " + totalRollouts);
+            //minTotalRollout = int.MaxValue;
+            //double bestEpsilon = -1;
+            //foreach (double epsilon in epsilonValues)
+            //{
+            //    MultiThreadSokobanTest(bestC_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, bestReward, stopOnResult, epsilon, false, maxThread);
+            //    Log( "Results epsilon: " + epsilon);
+            //    totalRollouts = 0;
+            //    for (int i = 0; i < rolloutsCount.Length; i++)
+            //    {
+            //        Log((i + 1) + ": " + rolloutsCount[i]);
+            //        totalRollouts += rolloutsCount[i];
+            //    }
+            //    Log("Total Rollouts: " + totalRollouts);
                 
-                if (totalRollouts < minTotalRollout)
-                {
-                    bestEpsilon = epsilon;
-                    minTotalRollout = totalRollouts;
-                }
-            }
+            //    if (totalRollouts < minTotalRollout)
+            //    {
+            //        bestEpsilon = epsilon;
+            //        minTotalRollout = totalRollouts;
+            //    }
+            //}
             Log("Best reward :" + bestReward.ToString() + "; Best C value:" + bestC_value+ "; Best epsilon value: " + bestEpsilon);
         }
 

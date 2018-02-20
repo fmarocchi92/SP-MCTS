@@ -1,2 +1,2 @@
 ::executable - game - const_C - const_D - maxIterations - restarts - maxThreads - seed - abstractSokoban - rewardType - terminateOnSolution - logfile - levelfile - c_values file - epsilon_values file
-.\MCTS2016.exe sokobanTuning 1 96.67 500000 1 1 1 true InverseBM true ./Log/log.txt ./Levels/sokoban.txt ./Parameters/c_values.csv ./Parameters/epsilon_values.csv
+.\MCTS2016.exe sokobanTuning 1 96.67 100000 1 16 2 true InverseBM true ./Log/log.txt ./Levels/sokoban.txt ./Parameters/c_values.csv ./Parameters/epsilon_values.csv
