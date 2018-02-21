@@ -36,5 +36,7 @@ namespace MCTS2016.SP_MCTS
         string TreeToString(int indent);
 
         void Update(double result);
+
+        void RemoveChild(ISPTreeNode child);
     }
 }

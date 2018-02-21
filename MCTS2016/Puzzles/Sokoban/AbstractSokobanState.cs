@@ -42,7 +42,7 @@ namespace MCTS2016.Puzzles.Sokoban
             }
             if (rng == null)
             {
-                rng = new MersenneTwister(0);
+                rng = new MersenneTwister();
             }
             this.rng = rng;
             this.rewardType = rewardType;

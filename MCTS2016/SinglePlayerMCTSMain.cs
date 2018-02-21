@@ -392,7 +392,7 @@ namespace MCTS2016
                         Log("Testing Reward: " + reward + " UCT constant: " + c_value + " epsilon: "+epsilon);
                         for (int i = 0; i < restarts; i++)
                         {
-                            MultiThreadSokobanTest(c_value, 0, iterations, restarts, levelPath, seed, abstractSokoban, reward, stopOnResult, epsilon, false, maxThread);
+                            MultiThreadSokobanTest(c_value, 0, iterations, restarts, levelPath, (uint)(seed+i), abstractSokoban, reward, stopOnResult, epsilon, false, maxThread);
                             for (int j = 0; j < scores.Length; j++)
                             {
                                 if (rolloutsCount.Count() <= j)

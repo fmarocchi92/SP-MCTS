@@ -150,5 +150,10 @@ namespace MCTS2016.SP_MCTS.SP_UCT
         {
             untriedMoves.Remove(move);
         }
+
+        public void RemoveChild(ISPTreeNode child)
+        {
+            childNodes.Remove((SP_UCTTreeNode) child);
+        }
     }
 }

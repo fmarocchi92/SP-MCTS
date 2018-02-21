@@ -52,6 +52,7 @@ namespace MCTS2016.SP_MCTS
             long usedMemory = afterMemory - beforeMemory;
             long averageUsedMemoryPerIteration = 0;
             iterationsExecuted = 0;
+            
 
             for (iterationsExecuted = 0; iterationsExecuted < iterations; iterationsExecuted++)
             {
@@ -116,6 +117,11 @@ namespace MCTS2016.SP_MCTS
                         state.Pass();
                     }
                 }
+                //if a node is a dead end remove it from the tree and adde the state to the set of dead ends
+                if(!node.HasChildren() && !node.HasMovesToTry() && !state.EndState())
+                {
+                    node.Parent.RemoveChild(node);
+                }  
 
                 
 
